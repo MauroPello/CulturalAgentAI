@@ -89,37 +89,40 @@
               }"
               @close="deleteError = null"
             />
-            <UTable :rows="documents" :columns="columns">
-              <template #empty-state>
-                <div class="flex flex-col items-center justify-center py-6 gap-3">
-                  <UIcon name="i-heroicons-document-text" class="w-10 h-10" />
-                  <p class="text-sm text-gray-500">No documents uploaded yet.</p>
-                  <p class="text-sm text-gray-500">
-                    Upload a document to get started.
-                  </p>
-                </div>
-              </template>
-              <template #status-data="{ row }">
-                <UBadge
-                  :color="row.status === 'completed' ? 'green' : 'orange'"
-                  variant="subtle"
-                >
-                  {{ row.status }}
-                </UBadge>
-              </template>
-              <template #actions-data="{ row }">
-                <div class="flex justify-end">
-                  <UButton
-                    icon="i-heroicons-trash"
-                    size="sm"
-                    color="red"
-                    variant="ghost"
-                    :loading="isDeleting"
-                    @click="() => handleDelete(row)"
-                  />
-                </div>
-              </template>
-            </UTable>
+            <!-- Scrollable table container -->
+            <div class="max-h-96 overflow-y-auto">
+              <UTable :rows="documents" :columns="columns" :loading="isLoadingDocuments">
+                <template #empty-state>
+                  <div class="flex flex-col items-center justify-center py-6 gap-3">
+                    <UIcon name="i-heroicons-document-text" class="w-10 h-10 text-gray-400" />
+                    <p class="text-sm text-gray-500">No documents uploaded yet.</p>
+                    <p class="text-sm text-gray-500">
+                      Upload a document to get started.
+                    </p>
+                  </div>
+                </template>
+                <template #status-data="{ row }">
+                  <UBadge
+                    :color="row.status === 'completed' ? 'green' : 'orange'"
+                    variant="subtle"
+                  >
+                    {{ row.status === 'completed' ? 'Processed' : 'Processing' }}
+                  </UBadge>
+                </template>
+                <template #actions-data="{ row }">
+                  <div class="flex justify-end">
+                    <UButton
+                      icon="i-heroicons-trash"
+                      size="sm"
+                      color="red"
+                      variant="ghost"
+                      :loading="isDeleting"
+                      @click="() => handleDelete(row)"
+                    />
+                  </div>
+                </template>
+              </UTable>
+            </div>
           </UCard>
         </div>
       </div>
@@ -159,27 +162,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 
-// Common interface for documents
+// Enhanced Document interface to match backend response
 interface Document {
   id: number;
   name: string;
+  size: string;
+  upload_date: string;
   status: "processing" | "completed";
+  file_id: string; // Add file_id for delete functionality
 }
 
 // --- Documents List ---
 const columns = [
   { key: "name", label: "Document Name" },
+  { key: "size", label: "Size" },
+  { key: "upload_date", label: "Upload Date" },
   { key: "status", label: "Status" },
   { key: "actions", label: "Actions", class: "text-right" },
 ];
-const documents = ref<Document[]>([
-  { id: 1, name: "Document 1.pdf", status: "completed" },
-  { id: 2, name: "Document 2.docx", status: "processing" },
-  { id: 3, name: "Another document.txt", status: "completed" },
-]);
-// TODO: Fetch documents from an API onMounted
+const documents = ref<Document[]>([]);
+const isLoadingDocuments = ref(false);
+
+// Format file size for display
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Format upload date for display
+const formatDate = (timestamp: number): string => {
+  return new Date(timestamp * 1000).toLocaleDateString();
+};
+
+// Fetch documents from the API
+const fetchDocuments = async () => {
+  isLoadingDocuments.value = true;
+  try {
+    const response = await fetch("http://localhost:8000/uploaded-files");
+    if (response.ok) {
+      const data = await response.json();
+      // Transform the API response to match our Document interface
+      documents.value = data.files.map((file: any, index: number) => ({
+        id: index + 1,
+        name: file.filename,
+        size: formatFileSize(file.file_size),
+        upload_date: formatDate(file.upload_time),
+        status: "completed" as const, // All files from this endpoint are processed
+        file_id: file.file_id // Include file_id for delete functionality
+      }));
+    } else {
+      console.error("Failed to fetch documents:", response.statusText);
+      documents.value = [];
+    }
+  } catch (error) {
+    console.error("Error fetching documents:", error);
+    documents.value = [];
+  } finally {
+    isLoadingDocuments.value = false;
+  }
+};
+
+// Fetch documents on component mount
+onMounted(() => {
+  fetchDocuments();
+});
 
 // --- Upload ---
 const selectedFiles = ref<File[]>([]);
@@ -223,24 +274,29 @@ const uploadFile = async () => {
   for (const file of selectedFiles.value) {
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("files", file); // Changed from "file" to "files" to match the backend endpoint
 
-      const response = await fetch("http://localhost:8000/process-document/", {
+      const response = await fetch("http://localhost:8000/process-documents/", {
         method: "POST",
         body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        uploadResults.push(
-          `SUCCESS: '${file.name}' processed (${result.chunks_added} chunks created).`
-        );
+        if (result.processed_files && result.processed_files.length > 0) {
+          const processedFile = result.processed_files[0];
+          uploadResults.push(
+            `SUCCESS: '${file.name}' processed (${processedFile.chunks_added} chunks created).`
+          );
+        } else {
+          uploadResults.push(`SUCCESS: '${file.name}' processed.`);
+        }
       } else {
         const errorData = await response
           .json()
           .catch(() => ({ detail: "Unknown error" }));
         uploadResults.push(
-          `ERROR: Upload failed for '${file.name}': ${errorData.detail}`
+          `ERROR: Upload failed for '${file.name}': ${errorData.detail || errorData.message}`
         );
       }
     } catch (error) {
@@ -259,7 +315,9 @@ const uploadFile = async () => {
     "dropzone-file"
   ) as HTMLInputElement;
   if (fileInput) fileInput.value = "";
-  // TODO: Refresh the document list
+  
+  // Always refresh the document list after upload attempts (whether successful or not)
+  await fetchDocuments();
 };
 
 // --- Delete ---
@@ -275,17 +333,18 @@ const handleDelete = (document: Document) => {
 
 const confirmDelete = async () => {
   if (documentToDelete.value) {
-    await deleteDocument(documentToDelete.value.id);
+    await deleteDocument(documentToDelete.value.file_id);
   }
   isDeleteModalOpen.value = false;
+  documentToDelete.value = null;
 };
 
-const deleteDocument = async (documentId: number) => {
+const deleteDocument = async (fileId: string) => {
   isDeleting.value = true;
   deleteError.value = null;
   try {
     const response = await fetch(
-      `http://localhost:8000/documents/${documentId}`,
+      `http://localhost:8000/uploaded-files/${fileId}`,
       {
         method: "DELETE",
       }
@@ -296,8 +355,8 @@ const deleteDocument = async (documentId: number) => {
       throw new Error(errorData.detail || "Failed to delete document.");
     }
 
-    // Refresh list on success
-    documents.value = documents.value.filter((d) => d.id !== documentId);
+    // Refresh the document list after successful deletion
+    await fetchDocuments();
   } catch (err) {
     if (err instanceof Error) {
       deleteError.value = err.message;

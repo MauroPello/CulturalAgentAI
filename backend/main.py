@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict
 import uuid
 import logging
+import json
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -70,6 +71,66 @@ SUPPORTED_FILE_TYPES = {
     "application/vnd.ms-excel": ".xls",
     "text/plain": ".txt",
 }
+
+# File tracking system
+PROCESSED_FILES_DB = UPLOAD_DIR / "processed_files.json"
+
+def load_processed_files() -> Dict:
+    """Load the processed files database from JSON file."""
+    if PROCESSED_FILES_DB.exists():
+        try:
+            with open(PROCESSED_FILES_DB, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Error loading processed files database: {e}")
+            return {"files": []}
+    return {"files": []}
+
+def save_processed_files(data: Dict):
+    """Save the processed files database to JSON file."""
+    try:
+        with open(PROCESSED_FILES_DB, 'w') as f:
+            json.dump(data, f, indent=2)
+    except IOError as e:
+        print(f"Error saving processed files database: {e}")
+
+def add_processed_file(filename: str, file_id: str, file_size: int, chunks_added: int):
+    """Add a processed file to the tracking database."""
+    db = load_processed_files()
+    
+    # Check if file already exists by filename (avoid duplicates)
+    existing_file = next((f for f in db["files"] if f["filename"] == filename), None)
+    if existing_file:
+        print(f"File already exists in tracking database: {filename}")
+        return False  # File already tracked
+    
+    new_file = {
+        "file_id": file_id,
+        "filename": filename,
+        "file_size": file_size,
+        "upload_time": time.time(),
+        "chunks_added": chunks_added,
+        "status": "completed"
+    }
+    
+    db["files"].append(new_file)
+    save_processed_files(db)
+    print(f"Added file to tracking database: {filename}")
+    return True  # Successfully added
+
+def remove_processed_file(file_id: str) -> bool:
+    """Remove a processed file from the tracking database."""
+    db = load_processed_files()
+    original_count = len(db["files"])
+    
+    # Remove the file with matching file_id
+    db["files"] = [f for f in db["files"] if f["file_id"] != file_id]
+    
+    if len(db["files"]) < original_count:
+        save_processed_files(db)
+        print(f"Removed file from tracking database: {file_id}")
+        return True
+    return False
 
 @app.get("/")
 def read_root():
@@ -155,6 +216,17 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
                 "chunks_added": len(chunks)
             })
             logger.info(f"Document processing for {file.filename} completed successfully!")
+            
+            # Add to processed files tracking database
+            file_added = add_processed_file(file.filename, file_id, len(contents), len(chunks))
+            if not file_added:
+                # File was a duplicate, add to errors
+                error_message = f"File '{file.filename}' already exists in the system."
+                print(error_message)
+                errors.append({"filename": file.filename, "error": error_message})
+                continue
+                
+            print(f"Document processing for {file.filename} completed successfully!")
 
         except Exception as e:
             error_detail = f"An unexpected error occurred: {str(e)}"
@@ -211,30 +283,40 @@ async def ask_intelligent(request: IntelligentSearchRequest, query_router: Query
 @app.get("/uploaded-files")
 async def list_uploaded_files():
     try:
-        files = []
-        # Include both PDF and Excel files
-        for pattern in ["*.pdf", "*.xlsx", "*.xls", "*.xlsm"]:
-            for file_path in UPLOAD_DIR.glob(pattern):
-                file_stats = file_path.stat()
-                files.append({
-                    "filename": file_path.name,
-                    "file_size": file_stats.st_size,
-                    "upload_time": file_stats.st_mtime,
-                    "file_path": str(file_path),
-                    "file_type": file_path.suffix
-                })
+        # Get processed files from JSON tracking database
+        db = load_processed_files()
+        files = db.get("files", [])
         
         return JSONResponse(
             status_code=200,
             content={
-                "message": "Files retrieved successfully",
+                "message": "Processed files retrieved successfully",
                 "files": files,
                 "total_files": len(files)
             }
         )
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listing processed files: {str(e)}")
+
+@app.delete("/uploaded-files/{file_id}")
+async def delete_processed_file(file_id: str):
+    try:
+        success = remove_processed_file(file_id)
+        
+        if success:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": f"File {file_id} removed successfully",
+                    "file_id": file_id
+                }
+            )
+        else:
+            raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
 
 class CulturalAlignRequest(BaseModel):
     text: str
