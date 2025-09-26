@@ -52,6 +52,7 @@ const analyzeText = async () => {
       },
     });
     analysisResult.value = response.answer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     error.value = "An error occurred while analyzing the text. Please try again.";
     console.error(e);

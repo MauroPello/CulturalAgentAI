@@ -1,19 +1,5 @@
 /* Styles for Cultural Agent Extension */
 
-#cultural-agent-floating-btn {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
-  line-height: 1.4 !important;
-  letter-spacing: 0.01em !important;
-}
-
-#cultural-agent-floating-btn:hover {
-  background: #3730A3 !important;
-}
-
-#cultural-agent-floating-btn:active {
-  transform: scale(0.98) !important;
-}
-
 #cultural-agent-notification {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
   line-height: 1.4 !important;
@@ -32,7 +18,6 @@
 }
 
 /* Ensure our elements don't inherit unwanted styles */
-#cultural-agent-floating-btn,
 #cultural-agent-notification {
   all: initial !important;
   position: fixed !important;
