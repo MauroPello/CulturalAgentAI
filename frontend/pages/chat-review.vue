@@ -14,7 +14,11 @@
           placeholder="Paste your messages here..."
           :rows="10"
         />
-        <UButton class="mt-4" @click="analyzeText"> Analyze </UButton>
+        <UButton class="mt-4" @click="analyzeText" :disabled="loading"> Analyze </UButton>
+        <p v-if="error" class="text-red-500 mt-2">{{ error }}</p>
+      </div>
+      <div v-if="loading" class="mt-4">
+        <p>Loading...</p>
       </div>
       <div v-if="analysisResult" class="mt-8">
         <h2 class="text-xl font-bold mb-2">Analysis Result</h2>
@@ -29,11 +33,34 @@ import { ref } from "vue";
 
 const textInput = ref("");
 const analysisResult = ref("");
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 const analyzeText = async () => {
-  // This is where the API call will be made.
-  // For now, we'll just simulate a result.
-  analysisResult.value = "This is a placeholder for the LLM evaluation result.";
+  if (!textInput.value.trim()) {
+    error.value = "Please paste some text to analyze.";
+    analysisResult.value = "";
+    return;
+  }
+
+  loading.value = true;
+  analysisResult.value = "";
+  error.value = null;
+
+  try {
+    const response = await $fetch<{ answer: string }>("http://127.0.0.1:8000/ask", {
+      method: "POST",
+      body: {
+        query: textInput.value,
+      },
+    });
+    analysisResult.value = response.answer;
+  } catch (e: any) {
+    error.value = "An error occurred while analyzing the text. Please try again.";
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 

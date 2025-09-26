@@ -1,35 +1,44 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import List, Dict
 import uuid
-import pandas as pd
 from pydantic import BaseModel
-import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
 from processing.vector_store import vector_store_instance
-from llm.llm import get_public_ai_client
-from pydantic import BaseModel
 
-app = FastAPI()
+from routers.search import router as search_router
+from models.schemas import IntelligentSearchRequest, IntelligentSearchResponse
+from dependencies import get_query_router
+from services.query_router import QueryRouter
+import time
+
+app = FastAPI(
+    title="Intelligent Document Processing API",
+    description="AI-powered document processing with intelligent search routing",
+    version="2.0.0"
+)
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001", "*"], 
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include the intelligent search router
+app.include_router(search_router)
+
+# Keep your existing models for backward compatibility
 class QueryRequest(BaseModel):
     query: str
     n_results: int = 5
@@ -48,169 +57,130 @@ SUPPORTED_FILE_TYPES = {
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello, World!"}
+    return {"message": "Intelligent Document Processing API v2.0 - Now with smart search routing!"}
 
-@app.post("/process-document/", response_model=Dict)
-async def process_document_endpoint(file: UploadFile = File(...)):
+@app.post("/process-documents/", response_model=Dict)
+async def process_documents_endpoint(files: List[UploadFile] = File(...)):
     """
-    Uploads a document, saves it, extracts text, chunks it, and returns the chunks.
-    The original file is deleted after processing.
+    Uploads one or more documents, saves them, extracts text, chunks it, and stores it in the vector database.
+    The original files are deleted after processing.
     """
-    print(f"Starting document processing for file: {file.filename}")
-    print(f"File content type: {file.content_type}")
-    
-    # Validate file type
-    if file.content_type not in SUPPORTED_FILE_TYPES:
-        print(f"Unsupported file type: {file.content_type}")
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Supported types are: {list(SUPPORTED_FILE_TYPES.keys())}")
+    processed_files = []
+    errors = []
+    total_chunks_added = 0
 
-    print(f"File type validation passed")
-    
-    # Save file temporarily
-    file_extension = SUPPORTED_FILE_TYPES[file.content_type]
-    file_id = str(uuid.uuid4())
-    unique_filename = f"{file_id}{file_extension}"
-    file_path = UPLOAD_DIR / unique_filename
-    
-    print(f"Saving file as: {unique_filename}")
+    for file in files:
+        file_path = None
+        try:
+            print(f"Starting document processing for file: {file.filename}")
+            print(f"File content type: {file.content_type}")
 
-    try:
-        contents = await file.read()
-        print(f"File size: {len(contents)} bytes")
-        with open(file_path, "wb") as buffer:
-            buffer.write(contents)
-        print(f"File saved successfully to: {file_path}")
+            # Validate file type
+            if file.content_type not in SUPPORTED_FILE_TYPES:
+                error_message = f"Unsupported file type: {file.content_type}. Supported types are: {list(SUPPORTED_FILE_TYPES.keys())}"
+                print(error_message)
+                errors.append({"filename": file.filename, "error": error_message})
+                continue
 
-        # Load and process the document using your modules
-        print(f"Loading document text from: {file.filename}")
-        document_text = load_document_text(file_path, file.filename)
-        if not document_text or not document_text.strip():
-            print(f"No text could be extracted from the document")
-            raise HTTPException(status_code=400, detail="No text could be extracted from the document.")
-        
-        print(f"Document text loaded successfully (length: {len(document_text)} characters)")
+            print(f"File type validation passed")
 
-        # Chunk the text
-        print(f"Chunking the document text...")
-        chunks = chunk_text(document_text)
-        print(f"Text chunked into {len(chunks)} chunks")
+            # Save file temporarily
+            file_extension = SUPPORTED_FILE_TYPES[file.content_type]
+            file_id = str(uuid.uuid4())
+            unique_filename = f"{file_id}{file_extension}"
+            file_path = UPLOAD_DIR / unique_filename
+            
+            print(f"Saving file as: {unique_filename}")
 
-        # Embed the chunks
-        print(f"Creating embeddings for {len(chunks)} chunks...")
-        embeddings = embed_chunks(chunks)
-        print(f"Embeddings created successfully ({len(embeddings)} embeddings)")
+            contents = await file.read()
+            print(f"File size: {len(contents)} bytes")
+            with open(file_path, "wb") as buffer:
+                buffer.write(contents)
+            print(f"File saved successfully to: {file_path}")
 
-        # Store in vector db
-        print(f"Storing chunks and embeddings in vector database...")
-        # Create metadata for each chunk
-        metadatas = [{
-            "filename": file.filename,
-            "file_id": file_id
-        } for _ in chunks]
-        vector_store_instance.add_documents(chunks, embeddings, metadatas)
-        print(f"Documents stored successfully in vector database")
+            # Load and process the document using your modules
+            print(f"Loading document text from: {file.filename}")
+            document_text = load_document_text(file_path, file.filename)
+            if not document_text or not document_text.strip():
+                error_message = "No text could be extracted from the document."
+                print(error_message)
+                errors.append({"filename": file.filename, "error": error_message})
+                continue
+            
+            print(f"Document text loaded successfully (length: {len(document_text)} characters)")
 
-        total_docs = vector_store_instance.get_count()
-        print(f"Total documents in store: {total_docs}")
-        print(f"Document processing completed successfully!")
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "message": "Document processed and stored successfully.",
+            # Chunk the text
+            print(f"Chunking the document text...")
+            chunks = chunk_text(document_text)
+            print(f"Text chunked into {len(chunks)} chunks")
+
+            # Embed the chunks
+            print(f"Creating embeddings for {len(chunks)} chunks...")
+            embeddings = embed_chunks(chunks)
+            print(f"Embeddings created successfully ({len(embeddings)} embeddings)")
+
+            # Store in vector db
+            print(f"Storing chunks and embeddings in vector database...")
+            metadatas = [{"filename": file.filename, "file_id": file_id} for _ in chunks]
+            vector_store_instance.add_documents(chunks, embeddings, metadatas)
+            print(f"Documents stored successfully in vector database")
+
+            total_chunks_added += len(chunks)
+            processed_files.append({
                 "file_id": file_id,
                 "filename": file.filename,
-                "chunks_added": len(chunks),
-                "total_documents_in_store": total_docs
-            }
-        )
-
-    except RuntimeError as e:
-        print(f"Runtime error during processing: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        print(f"Unexpected error during processing: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
-
-    finally:
-        # 5. Clean up the saved file
-        if file_path.exists():
-            file_path.unlink()
-            print(f"Temporary file cleaned up: {file_path}")
-        else:
-            print(f"Temporary file not found for cleanup: {file_path}")
-
-@app.post("/query/")
-async def query_index(request: QueryRequest):
-    """
-    Accepts a text query, embeds it, and retrieves the most relevant chunks from the vector store.
-    """
-    if not request.query:
-        raise HTTPException(status_code=400, detail="Query cannot be empty.")
-
-    try:
-        # Embed the user's query
-        query_embedding = embed_chunks([request.query])[0]
-
-        # Query the vector store
-        results = vector_store_instance.query(
-            query_embedding=query_embedding,
-            n_results=request.n_results
-        )
-
-        # Prepare the context from retrieved documents
-        context_chunks = []
-        if results and results.get('documents') and results['documents'][0]:
-            context_chunks = results['documents'][0]
-        
-        context_string = "\n\n---\n\n".join(context_chunks)
-
-        prompt_template = """
-        You are a helpful assistant for the company. Use the following context to answer the question.
-        If the answer is not found in the context, state that you don't have enough information.
-
-        CONTEXT:
-        {context}
-
-        QUESTION:
-        {question}
-
-        ANSWER:
-        """
-
-        # Format the final prompt
-        final_prompt = prompt_template.format(
-            context=context_string,
-            question=request.query
-        )
-
-        print(f"Final prompt prepared for LLM:\n{final_prompt}")
-
-        # Use the LLM to generate a response
-        try:
-            llm_client = get_public_ai_client()
-            ai_response = llm_client.simple_chat(final_prompt)
-            print(f"LLM response received: {ai_response}")
-
-            return JSONResponse(status_code=200, content={
-                "query": request.query,
-                "answer": ai_response,
-                "retrieved_chunks": context_chunks,
-                "context_used": len(context_chunks) > 0
+                "chunks_added": len(chunks)
             })
-        except Exception as llm_error:
-            print(f"Error with LLM client: {str(llm_error)}")
-            # If LLM fails, return the prepared prompt as fallback
-            return JSONResponse(status_code=200, content={
-                "query": request.query,
-                "prepared_prompt": final_prompt,
-                "retrieved_chunks": context_chunks,
-                "error": f"LLM unavailable: {str(llm_error)}"
-            })
+            print(f"Document processing for {file.filename} completed successfully!")
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred during query: {str(e)}")
+        except Exception as e:
+            error_detail = f"An unexpected error occurred: {str(e)}"
+            print(f"Error processing {file.filename}: {error_detail}")
+            errors.append({"filename": file.filename, "error": error_detail})
+        finally:
+            # Clean up the saved file
+            if file_path and file_path.exists():
+                file_path.unlink()
+                print(f"Temporary file cleaned up: {file_path}")
 
+    total_docs = vector_store_instance.get_count()
+    
+    if not processed_files and errors:
+        raise HTTPException(status_code=400, detail={"message": "All files failed to process.", "errors": errors})
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "message": "Document processing finished.",
+            "processed_files": processed_files,
+            "errors": errors,
+            "total_chunks_added": total_chunks_added,
+            "total_documents_in_store": total_docs
+        }
+    )
+
+@app.post("/ask", response_model=IntelligentSearchResponse)
+async def ask_intelligent(request: IntelligentSearchRequest, query_router: QueryRouter = Depends(get_query_router)):
+    """
+    The main endpoint for asking questions. It uses the QueryRouter to analyze,
+    search, and generate a response.
+    """
+    start_time = time.time()
+    
+    final_response, results, analysis, tokens_used = await query_router.process_query(request.query)
+    
+    execution_time = time.time() - start_time
+    
+    return IntelligentSearchResponse(
+        query=request.query,
+        strategy_used=analysis.strategy,
+        confidence=analysis.confidence,
+        answer=final_response,
+        sources=results,
+        analysis=analysis,
+        execution_time=execution_time,
+        tokens_used=tokens_used
+    )
 
 @app.get("/uploaded-files")
 async def list_uploaded_files():
