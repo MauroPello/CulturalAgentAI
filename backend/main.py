@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import List, Dict
 import uuid
@@ -11,6 +12,15 @@ from processing.embedder import embed_chunks
 from processing.vector_store import add_documents_to_store, get_document_count
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],  # Add your frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = Path("uploads")
@@ -34,40 +44,64 @@ async def process_document_endpoint(file: UploadFile = File(...)):
     Uploads a document, saves it, extracts text, chunks it, and returns the chunks.
     The original file is deleted after processing.
     """
+    print(f"🚀 Starting document processing for file: {file.filename}")
+    print(f"📄 File content type: {file.content_type}")
+    
     # 1. Validate file type
     if file.content_type not in SUPPORTED_FILE_TYPES:
+        print(f"❌ Unsupported file type: {file.content_type}")
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Supported types are: {list(SUPPORTED_FILE_TYPES.keys())}")
 
+    print(f"✅ File type validation passed")
+    
     # 2. Save file temporarily
     file_extension = SUPPORTED_FILE_TYPES[file.content_type]
     file_id = str(uuid.uuid4())
     unique_filename = f"{file_id}{file_extension}"
     file_path = UPLOAD_DIR / unique_filename
+    
+    print(f"💾 Saving file as: {unique_filename}")
 
     try:
         contents = await file.read()
+        print(f"📊 File size: {len(contents)} bytes")
         with open(file_path, "wb") as buffer:
             buffer.write(contents)
+        print(f"✅ File saved successfully to: {file_path}")
 
         # 3. Load and process the document using your modules
+        print(f"📖 Loading document text from: {file.filename}")
         document_text = load_document_text(file_path, file.filename)
         if not document_text or not document_text.strip():
+            print(f"❌ No text could be extracted from the document")
             raise HTTPException(status_code=400, detail="No text could be extracted from the document.")
+        
+        print(f"✅ Document text loaded successfully (length: {len(document_text)} characters)")
 
         # 4. Chunk the text
+        print(f"✂️ Chunking the document text...")
         chunks = chunk_text(document_text)
+        print(f"✅ Text chunked into {len(chunks)} chunks")
 
         # 5. Embed the chunks
+        print(f"🧠 Creating embeddings for {len(chunks)} chunks...")
         embeddings = embed_chunks(chunks)
+        print(f"✅ Embeddings created successfully ({len(embeddings)} embeddings)")
 
         # 6. Store in Vector Database (NEW STEP)
+        print(f"🗃️ Storing chunks and embeddings in vector database...")
         # Create metadata for each chunk
         metadatas = [{
             "filename": file.filename,
             "file_id": file_id
         } for _ in chunks]
         add_documents_to_store(chunks, embeddings, metadatas)
+        print(f"✅ Documents stored successfully in vector database")
 
+        total_docs = get_document_count()
+        print(f"📊 Total documents in store: {total_docs}")
+        print(f"🎉 Document processing completed successfully!")
+        
         return JSONResponse(
             status_code=200,
             content={
@@ -75,7 +109,7 @@ async def process_document_endpoint(file: UploadFile = File(...)):
                 "file_id": file_id,
                 "filename": file.filename,
                 "chunks_added": len(chunks),
-                "total_documents_in_store": get_document_count() # Get total count
+                "total_documents_in_store": total_docs # Get total count
             }
         )
 
@@ -92,14 +126,19 @@ async def process_document_endpoint(file: UploadFile = File(...)):
         # )
 
     except RuntimeError as e:
+        print(f"❌ Runtime error during processing: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        print(f"❌ Unexpected error during processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
     finally:
         # 5. Clean up the saved file
         if file_path.exists():
             file_path.unlink()
+            print(f"🧹 Temporary file cleaned up: {file_path}")
+        else:
+            print(f"⚠️ Temporary file not found for cleanup: {file_path}")
 
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
