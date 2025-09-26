@@ -1,10 +1,12 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-import os
 from pathlib import Path
+from typing import List, Dict
 import uuid
-from typing import List
 import pandas as pd
+
+from processing.loader import load_document_text
+from processing.chunker import chunk_text
 
 app = FastAPI()
 
@@ -12,9 +14,69 @@ app = FastAPI()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+SUPPORTED_FILE_TYPES = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.ms-excel": ".xls",
+    "text/plain": ".txt",
+}
+
 @app.get("/")
 def read_root():
     return {"message": "Hello, World!"}
+
+@app.post("/process-document/", response_model=Dict)
+async def process_document_endpoint(file: UploadFile = File(...)):
+    """
+    Uploads a document, saves it, extracts text, chunks it, and returns the chunks.
+    The original file is deleted after processing.
+    """
+    # 1. Validate file type
+    if file.content_type not in SUPPORTED_FILE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Supported types are: {list(SUPPORTED_FILE_TYPES.keys())}")
+
+    # 2. Save file temporarily
+    file_extension = SUPPORTED_FILE_TYPES[file.content_type]
+    file_id = str(uuid.uuid4())
+    unique_filename = f"{file_id}{file_extension}"
+    file_path = UPLOAD_DIR / unique_filename
+
+    try:
+        contents = await file.read()
+        with open(file_path, "wb") as buffer:
+            buffer.write(contents)
+
+        # 3. Load and process the document using your modules
+        document_text = load_document_text(file_path, file.filename)
+        if not document_text or not document_text.strip():
+            raise HTTPException(status_code=400, detail="No text could be extracted from the document.")
+
+        # 4. Chunk the text
+        chunks = chunk_text(document_text)
+
+        # In the future, you will add embedding and vector DB storage steps here.
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Document processed successfully.",
+                "file_id": file_id,
+                "filename": file.filename,
+                "chunk_count": len(chunks),
+                "chunks": chunks, # For now, we return the chunks. Later, you might just return a success message.
+            }
+        )
+
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+    finally:
+        # 5. Clean up the saved file
+        if file_path.exists():
+            file_path.unlink()
 
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
