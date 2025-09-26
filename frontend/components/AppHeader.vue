@@ -37,9 +37,17 @@ const { isMinimumSm, width } = useScreenSize();
           size="sm"
           class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
           variant="ghost"
-          to="/all-recipes"
+          to="/upload"
         >
-          All Recipes
+          Upload
+        </UButton>
+        <UButton
+          size="sm"
+          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+          variant="ghost"
+          to="/chat-review"
+        >
+          Review Chat
         </UButton>
       </div>
       <ClientOnly>
