@@ -1,5 +1,4 @@
-import { companyLogo, companySEODescription, companySEOTitle, companyUrl } from "./constants/company";
-// import { getRecipes } from "./utils/getRecipes";
+import { companyLogo, companyName, companyUrl } from "./constants/company";
 import robotsConfig from "./robots.config";
 import viewportConfig from "./viewport.config";
 
@@ -18,9 +17,8 @@ export default defineNuxtConfig({
   components: ["~/components"],
   robots: robotsConfig,
   site: {
-    name: companySEOTitle,
+    name: companyName,
     url: companyUrl,
-    description: companySEODescription,
     logo: companyLogo,
   },
   colorMode: {
