@@ -16,21 +16,38 @@
               drop
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              PDF, DOC, or DOCX
+              PDF, DOCX, XLSX, XLS, or TXT
             </p>
           </div>
           <input
             id="dropzone-file"
             type="file"
             class="hidden"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.docx,.xlsx,.xls,.txt"
             @change="handleFileChange"
           >
         </label>
       </div>
       <div v-if="selectedFile" class="mt-4">
         <p>Selected file: {{ selectedFile.name }}</p>
-        <UButton class="mt-2" @click="uploadFile"> Upload </UButton>
+        <UButton 
+          class="mt-2" 
+          :loading="isUploading"
+          :disabled="isUploading"
+          @click="uploadFile"
+        > 
+          {{ isUploading ? 'Uploading...' : 'Upload' }}
+        </UButton>
+      </div>
+      <div v-if="uploadStatus" class="mt-4">
+        <p 
+          :class="{
+            'text-green-600': uploadStatus.includes('successfully'),
+            'text-red-600': uploadStatus.includes('failed')
+          }"
+        >
+          {{ uploadStatus }}
+        </p>
       </div>
     </UCard>
   </div>
@@ -40,6 +57,8 @@
 import { ref } from "vue";
 
 const selectedFile = ref<File | null>(null);
+const isUploading = ref(false);
+const uploadStatus = ref<string>("");
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -47,22 +66,59 @@ const handleFileChange = (event: Event) => {
     const file = target.files[0];
     const allowedTypes = [
       "application/pdf",
-      "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/plain",
     ];
-    if (file && allowedTypes.includes(file.type)) {
+    if (file && allowedTypes.indexOf(file.type) !== -1) {
       selectedFile.value = file;
+      uploadStatus.value = "";
     } else {
-      alert("Please select a valid file type (PDF, DOC, DOCX).");
+      alert("Please select a valid file type (PDF, DOCX, XLSX, XLS, TXT).");
       target.value = "";
     }
   }
 };
 
-const uploadFile = () => {
-  if (selectedFile.value) {
-    console.log("Uploading file:", selectedFile.value.name);
-    // Here you would typically use a library like Axios to send the file to your backend
+const uploadFile = async () => {
+  if (!selectedFile.value) {
+    return;
+  }
+
+  isUploading.value = true;
+  uploadStatus.value = "";
+
+  try {
+    const formData = new FormData();
+    formData.append("file", selectedFile.value);
+
+    const response = await fetch("http://localhost:8000/process-document/", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      uploadStatus.value = `Document processed successfully! ${result.chunks_added} chunks created. Total documents in store: ${result.total_documents_in_store}`;
+      console.log("Upload successful:", result);
+      
+      // Reset the form
+      selectedFile.value = null;
+      const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    } else {
+      const errorData = await response.json().catch(() => ({ detail: "Upload failed" }));
+      uploadStatus.value = `Upload failed: ${errorData.detail || "Unknown error"}`;
+      console.error("Upload failed:", errorData);
+    }
+  } catch (error) {
+    uploadStatus.value = `Upload failed: ${error instanceof Error ? error.message : "Network error"}`;
+    console.error("Upload error:", error);
+  } finally {
+    isUploading.value = false;
   }
 };
 </script>
