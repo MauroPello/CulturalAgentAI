@@ -95,13 +95,25 @@ async function loadCultureSettings() {
     const data = await browser.storage.local.get('selectedCulture');
     const cultureSelect = document.getElementById('cultureSelect');
     
+    console.log('Culture data from storage:', data);
+    console.log('Culture select element:', cultureSelect);
+    
+    if (!cultureSelect) {
+      console.error('Culture select element not found!');
+      return;
+    }
+    
     if (data.selectedCulture) {
+      console.log('Setting culture to stored value:', data.selectedCulture);
       cultureSelect.value = data.selectedCulture;
     } else {
       // Default to American if no culture is saved
-      cultureSelect.value = 'us';
-      await browser.storage.local.set({ selectedCulture: 'us' });
+      console.log('Setting culture to default: American');
+      cultureSelect.value = 'American';
+      await browser.storage.local.set({ selectedCulture: 'American' });
     }
+    
+    console.log('Final culture select value:', cultureSelect.value);
   } catch (error) {
     console.error('Error loading culture settings:', error);
   }
@@ -112,13 +124,25 @@ async function loadLanguageSettings() {
     const data = await browser.storage.local.get('selectedLanguage');
     const languageSelect = document.getElementById('languageSelect');
     
+    console.log('Language data from storage:', data);
+    console.log('Language select element:', languageSelect);
+    
+    if (!languageSelect) {
+      console.error('Language select element not found!');
+      return;
+    }
+    
     if (data.selectedLanguage) {
+      console.log('Setting language to stored value:', data.selectedLanguage);
       languageSelect.value = data.selectedLanguage;
     } else {
       // Default to English if no language is saved
-      languageSelect.value = 'en';
-      await browser.storage.local.set({ selectedLanguage: 'en' });
+      console.log('Setting language to default: English');
+      languageSelect.value = 'English'; 
+      await browser.storage.local.set({ selectedLanguage: 'English' });
     }
+    
+    console.log('Final language select value:', languageSelect.value);
   } catch (error) {
     console.error('Error loading language settings:', error);
   }

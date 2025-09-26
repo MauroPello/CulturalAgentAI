@@ -256,7 +256,9 @@ async def cultural_align_text(request: CulturalAlignRequest):
             f"TEXT:\n{request.text}\n\n"
             "BETTER VERSION:"
         )
+        print(f"Prompt for cultural alignment:\n{prompt}")
         better_version = llm_client.simple_chat(prompt)
+        print(f"Better version generated:\n{better_version}")
         return JSONResponse(status_code=200, content={
             "text": request.text,
             "target_culture": request.target_culture,
