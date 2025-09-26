@@ -1,6 +1,9 @@
 // Content script for handling text selection and UI interactions
 console.log('Cultural Agent Extension content script loaded');
 
+// Use chrome API with fallback to browser API for cross-browser compatibility
+const api = typeof browser !== 'undefined' ? browser : chrome;
+
 let isExtensionActive = false;
 let selectedText = '';
 
@@ -49,7 +52,7 @@ function sendSelectedText() {
   if (selectedText.length === 0) return;
   
   // Send message to background script
-  browser.runtime.sendMessage({
+  api.runtime.sendMessage({
     action: "sendSelectedText",
     text: selectedText
   }).then(response => {
@@ -120,7 +123,7 @@ function showSuccessNotification(message, showPopupPrompt = false) {
 }
 
 // Listen for messages from background script
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "showNotification") {
     showNotification(request.message, request.type);
   } else if (request.action === "showSuccessNotification") {

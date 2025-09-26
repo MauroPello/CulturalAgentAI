@@ -1,8 +1,17 @@
 // Popup script for managing extension UI and data
+
+// Use chrome API with fallback to browser API for cross-browser compatibility
+const api = typeof browser !== 'undefined' ? browser : chrome;
+
 document.addEventListener('DOMContentLoaded', async () => {
   // Clear any badge when popup is opened
   try {
-    await browser.browserAction.setBadgeText({ text: "" });
+    // Use action API for Manifest V3, fallback to browserAction for V2
+    if (api.action) {
+      await api.action.setBadgeText({ text: "" });
+    } else {
+      await api.browserAction.setBadgeText({ text: "" });
+    }
   } catch (error) {
     console.log('Could not clear badge:', error);
   }
@@ -16,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadLastSelectedText() {
   try {
-    const data = await browser.storage.local.get(['lastSelectedText', 'lastSelectedUrl', 'lastSelectedTime']);
+    const data = await api.storage.local.get(['lastSelectedText', 'lastSelectedUrl', 'lastSelectedTime']);
     
     const textElement = document.getElementById('lastSelectedText');
     const urlElement = document.getElementById('lastSelectedUrl');
@@ -47,7 +56,7 @@ async function loadLastSelectedText() {
 
 async function loadRecentSelections() {
   try {
-    const data = await browser.storage.local.get('processedTexts');
+    const data = await api.storage.local.get('processedTexts');
     const recentSelections = data.processedTexts || [];
     const container = document.getElementById('recentSelections');
     
@@ -92,7 +101,7 @@ async function loadRecentSelections() {
 
 async function loadCultureSettings() {
   try {
-    const data = await browser.storage.local.get('selectedCulture');
+    const data = await api.storage.local.get('selectedCulture');
     const cultureSelect = document.getElementById('cultureSelect');
     
     console.log('Culture data from storage:', data);
@@ -110,7 +119,7 @@ async function loadCultureSettings() {
       // Default to American if no culture is saved
       console.log('Setting culture to default: American');
       cultureSelect.value = 'American';
-      await browser.storage.local.set({ selectedCulture: 'American' });
+      await api.storage.local.set({ selectedCulture: 'American' });
     }
     
     console.log('Final culture select value:', cultureSelect.value);
@@ -121,7 +130,7 @@ async function loadCultureSettings() {
 
 async function loadLanguageSettings() {
   try {
-    const data = await browser.storage.local.get('selectedLanguage');
+    const data = await api.storage.local.get('selectedLanguage');
     const languageSelect = document.getElementById('languageSelect');
     
     console.log('Language data from storage:', data);
@@ -139,7 +148,7 @@ async function loadLanguageSettings() {
       // Default to English if no language is saved
       console.log('Setting language to default: English');
       languageSelect.value = 'English'; 
-      await browser.storage.local.set({ selectedLanguage: 'English' });
+      await api.storage.local.set({ selectedLanguage: 'English' });
     }
     
     console.log('Final language select value:', languageSelect.value);
@@ -153,7 +162,7 @@ function setupEventListeners() {
   document.getElementById('cultureSelect').addEventListener('change', async (event) => {
     try {
       const selectedCulture = event.target.value;
-      await browser.storage.local.set({ selectedCulture });
+      await api.storage.local.set({ selectedCulture });
       
       // Show visual feedback
       const dropdown = event.target;
@@ -175,7 +184,7 @@ function setupEventListeners() {
   document.getElementById('languageSelect').addEventListener('change', async (event) => {
     try {
       const selectedLanguage = event.target.value;
-      await browser.storage.local.set({ selectedLanguage });
+      await api.storage.local.set({ selectedLanguage });
       
       // Show visual feedback
       const dropdown = event.target;
@@ -202,7 +211,7 @@ function setupEventListeners() {
 async function alignSelectedText() {
   try {
     // Get the last selected text
-    const data = await browser.storage.local.get(['lastSelectedText', 'selectedCulture', 'selectedLanguage']);
+    const data = await api.storage.local.get(['lastSelectedText', 'selectedCulture', 'selectedLanguage']);
     const text = data.lastSelectedText;
     const culture = data.selectedCulture || 'us';
     const language = data.selectedLanguage || 'en';
@@ -279,7 +288,7 @@ function escapeHtml(text) {
 }
 
 // Listen for storage changes to update UI in real-time
-browser.storage.onChanged.addListener((changes, namespace) => {
+api.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     if (changes.lastSelectedText || changes.lastSelectedUrl || changes.lastSelectedTime) {
       loadLastSelectedText();
