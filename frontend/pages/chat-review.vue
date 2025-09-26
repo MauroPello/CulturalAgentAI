@@ -2,10 +2,10 @@
   <div class="container mx-auto p-4">
     <UCard>
       <template #header>
-        <h1 class="text-2xl font-bold">Chat Review</h1>
+        <h1 class="text-2xl font-bold">Review Chat</h1>
       </template>
       <p class="mb-4">
-        Paste a collection of messages and emails to get an LLM evaluation.
+        Paste a collection of messages and emails to get an LLM evaluation on their cultural and linguistic appropriateness.
       </p>
       <div class="flex flex-col items-start">
         <UTextarea

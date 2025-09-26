@@ -2,9 +2,9 @@
 import type { Message } from '~/types/chat'
 
 const messages = ref<Message[]>([
-  { id: 1, text: 'Hello! How can I help you today?', isUser: false },
-  { id: 2, text: 'I want to know more about the cultural impact of AI.', isUser: true },
-  { id: 3, text: 'That\'s a great question! The cultural impact of AI is vast and multifaceted. It affects everything from art and music to language and social norms. Do you have a specific area of interest?', isUser: false },
+  { id: 1, text: 'Hello! I am an AI expert in foreign market expansion. How can I help you today?', isUser: false },
+  { id: 2, text: 'I want to create a plan to expand my business into a new country.', isUser: true },
+  { id: 3, text: 'Excellent! To create a successful expansion plan, we need to consider several factors. Which country are you considering for expansion?', isUser: false },
 ])
 
 const newMessage = ref('')
@@ -22,7 +22,7 @@ function sendMessage() {
   setTimeout(() => {
     messages.value.push({
       id: messages.value.length + 1,
-      text: 'That\'s an interesting point. Let me think about that for a moment...',
+      text: 'That\'s a great choice. Let\'s start by analyzing the market size and growth potential in that country.',
       isUser: false,
     })
   }, 1000)
@@ -37,6 +37,14 @@ function sendMessage() {
     <main class="flex-1 overflow-y-auto p-4">
       <UCard class="h-full">
         <div class="flex flex-col h-full">
+          <div class="text-center mb-4">
+            <h1 class="text-2xl font-bold">
+              Define a Market Expansion Plan
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400">
+              Chat with our AI expert to create a plan for entering a new foreign market.
+            </p>
+          </div>
           <div class="flex-1 space-y-4 overflow-y-auto">
             <div
               v-for="message in messages"
