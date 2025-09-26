@@ -7,6 +7,7 @@ import pandas as pd
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
+from processing.embedder import embed_chunks
 
 app = FastAPI()
 
@@ -55,6 +56,10 @@ async def process_document_endpoint(file: UploadFile = File(...)):
         # 4. Chunk the text
         chunks = chunk_text(document_text)
 
+        # 5. Embed the chunks
+        embeddings = embed_chunks(chunks)
+
+
         # In the future, you will add embedding and vector DB storage steps here.
 
         return JSONResponse(
@@ -64,7 +69,8 @@ async def process_document_endpoint(file: UploadFile = File(...)):
                 "file_id": file_id,
                 "filename": file.filename,
                 "chunk_count": len(chunks),
-                "chunks": chunks, # For now, we return the chunks. Later, you might just return a success message.
+                "embedding_count": len(embeddings),
+                #"chunks": chunks, # For now, we return the chunks. Later, you might just return a success message.
             }
         )
 
