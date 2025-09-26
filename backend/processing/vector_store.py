@@ -1,46 +1,50 @@
 import chromadb
 from typing import List, Dict
 
-# Setup a persistent client. Data will be stored in the 'chroma_db' directory.
-client = chromadb.PersistentClient(path="chroma_db")
-
-# The collection is where you'll store the vectors.
-# You can think of it like a table in a SQL database.
-# We'll use a default name, but you could make this customer-specific.
+DB_PATH = "chroma_db"
 COLLECTION_NAME = "company_documents"
-collection = client.get_or_create_collection(name=COLLECTION_NAME)
 
-def add_documents_to_store(chunks: List[str], embeddings: List[List[float]], metadata: List[Dict]):
-    """
-    Adds chunks, their embeddings, and metadata to the ChromaDB collection.
-    Generates unique IDs for each chunk.
-    """
-    if not chunks:
-        return
-
-    # ChromaDB requires unique IDs for each document. We can generate them.
-    # Here, we'll use the metadata's file_id and the chunk index.
-    ids = [f"{meta['file_id']}-chunk{i}" for i, meta in enumerate(metadata)]
-
-    collection.add(
-        embeddings=embeddings,
-        documents=chunks,
-        metadatas=metadata,
-        ids=ids
-    )
-
-def get_document_count() -> int:
-    """Returns the total number of documents in the collection."""
-    return collection.count()
-
-def query_store(query_embedding: List[float], n_results: int = 5) -> Dict:
-    """
-    Queries the ChromaDB collection for the most similar documents.
+class VectorStore:
+    """A wrapper class for ChromaDB to manage document storage and retrieval."""
     
-    Returns a dictionary containing the retrieved documents, metadata, and distances.
-    """
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results
-    )
-    return results
+    def __init__(self, path: str = DB_PATH, collection_name: str = COLLECTION_NAME):
+        """
+        Initializes the VectorStore.
+        
+        Args:
+            path: The directory to store the ChromaDB data.
+            collection_name: The name of the collection to use.
+        """
+        self.client = chromadb.PersistentClient(path=path)
+        self.collection = self.client.get_or_create_collection(name=collection_name)
+
+    def add_documents(self, chunks: List[str], embeddings: List[List[float]], metadatas: List[Dict]):
+        """
+        Adds documents, their embeddings, and metadata to the collection.
+        """
+        if not chunks:
+            return
+
+        ids = [f"{meta['file_id']}-chunk{i}" for i, meta in enumerate(metadatas)]
+
+        self.collection.add(
+            embeddings=embeddings,
+            documents=chunks,
+            metadatas=metadatas,
+            ids=ids
+        )
+
+    def query(self, query_embedding: List[float], n_results: int = 5) -> Dict:
+        """
+        Queries the collection for the most similar documents.
+        """
+        return self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results
+        )
+
+    def get_count(self) -> int:
+        """Returns the total number of documents in the collection."""
+        return self.collection.count()
+
+vector_store_instance = VectorStore()

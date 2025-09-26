@@ -15,7 +15,7 @@ load_dotenv()
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
-from processing.vector_store import add_documents_to_store, get_document_count, query_store
+from processing.vector_store import vector_store_instance
 from llm.llm import get_public_ai_client
 
 app = FastAPI()
@@ -106,10 +106,10 @@ async def process_document_endpoint(file: UploadFile = File(...)):
             "filename": file.filename,
             "file_id": file_id
         } for _ in chunks]
-        add_documents_to_store(chunks, embeddings, metadatas)
+        vector_store_instance.add_documents(chunks, embeddings, metadatas)
         print(f"Documents stored successfully in vector database")
 
-        total_docs = get_document_count()
+        total_docs = vector_store_instance.get_count()
         print(f"Total documents in store: {total_docs}")
         print(f"Document processing completed successfully!")
         
@@ -152,7 +152,7 @@ async def query_index(request: QueryRequest):
         query_embedding = embed_chunks([request.query])[0]
 
         # Query the vector store
-        results = query_store(
+        results = vector_store_instance.query(
             query_embedding=query_embedding,
             n_results=request.n_results
         )

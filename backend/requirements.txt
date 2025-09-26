@@ -12,6 +12,7 @@ click==8.3.0
 coloredlogs==15.0.1
 distro==1.9.0
 dnspython==2.8.0
+docx==0.2.4
 durationpy==0.10
 email-validator==2.3.0
 et_xmlfile==2.0.0
@@ -114,6 +115,7 @@ torch==2.8.0
 tqdm==4.67.1
 transformers==4.56.2
 typer==0.19.2
+typing==3.7.4.3
 typing-inspection==0.4.1
 typing_extensions==4.15.0
 tzdata==2025.2
