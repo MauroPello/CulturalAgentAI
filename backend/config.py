@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     public_ai_key: str
     google_search_api_key: str
     google_search_engine_id: str
+    swiss_ai_platform_api_key: str  
     
     # LLM settings
     llm_model: str = "swiss-ai/apertus-8b-instruct"

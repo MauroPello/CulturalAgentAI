@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class SwissAIGanttPlanner:
     """SwissAI Gantt Planner using Apertus-70B model via Swiss AI Platform."""
     

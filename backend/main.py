@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,8 +7,6 @@ from typing import List, Dict
 import uuid
 from pydantic import BaseModel
 from dotenv import load_dotenv
-
-load_dotenv()
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
@@ -21,12 +20,10 @@ from services.query_router import QueryRouter
 import time
 from services.llm_services import get_public_ai_client
 
-try:
-    from api.gantt.app import app as gantt_app
-    GANTT_API_AVAILABLE = True
-except ImportError as e:
-    print(f"SwissAI Gantt Planner API not available: {e}")
-    GANTT_API_AVAILABLE = False
+from gantt.planner import SwissAIGanttPlanner, create_planner
+from gantt.models import GanttRequest, APIGanttResponse
+
+load_dotenv()
 
 app = FastAPI(
     title="Intelligent Document Processing API",
@@ -251,26 +248,56 @@ async def cultural_align_text(request: CulturalAlignRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing text: {str(e)}")
 
-# Include SwissAI Gantt Planner API information in the main app
-if GANTT_API_AVAILABLE:
-    @app.get("/gantt-api-info")
-    async def gantt_api_info():
-        """Information about the SwissAI Gantt Planner API service."""
-        return {
-            "service": "SwissAI Gantt Planner API",
-            "status": "available",
-            "description": "Self-contained API for business plan to Gantt chart conversion",
-            "access": {
-                "standalone": "http://localhost:8001",
-                "endpoints": [
-                    "/docs - API documentation",
-                    "/health - Health check",
-                    "/convert - Convert business description to Gantt plan"
-                ]
-            },
-            "note": "This is a separate API service. Run with: python api/gantt/start_api.py"
-        }
+def get_planner() -> SwissAIGanttPlanner:
+    """Dependency to get planner instance."""
+    try:
+        return create_planner()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Configuration error: {str(e)}"
+        )
     
-    print("SwissAI Gantt Planner API available at /gantt-api-info")
-else:
-    print("SwissAI Gantt Planner API not available")
+@app.post("/convert", response_model=APIGanttResponse)
+async def convert_to_gantt(
+    request: GanttRequest, 
+    planner: SwissAIGanttPlanner = Depends(get_planner)
+):
+    """
+    Convert a business plan description to a structured Gantt chart JSON.
+    
+    - **description**: Text describing the business plan or project
+    - **project_name**: Optional project name to use in the output
+    """
+    start_time = datetime.now()
+    
+    try:
+        # Validate input
+        if not request.description.strip():
+            raise HTTPException(status_code=400, detail="Description cannot be empty")
+        
+        # Generate Gantt plan
+        gantt_data = planner.generate_gantt_plan(
+            description=request.description, 
+            project_name=request.project_name
+        )
+        
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        return APIGanttResponse(
+            success=True,
+            gantt_plan=gantt_data,
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        processing_time = (datetime.now() - start_time).total_seconds()
+        return APIGanttResponse(
+            success=False,
+            error=str(e),
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
