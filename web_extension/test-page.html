@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cultural Agent Extension Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        h1 {
+            color: #4F46E5;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px dashed #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        .test-section h2 {
+            color: #374151;
+            margin-top: 0;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #1e40af;
+        }
+        .code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .emoji {
+            font-size: 1.2em;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+             margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Cultural Agent Extension Test Page</h1>
+        
+        <div class="instructions">
+            <h3>📋 How to Test Your Extension</h3>
+            <ol>
+                <li>Make sure the Cultural Agent extension is installed in Firefox</li>
+                <li>Select any text in the sections below</li>
+                <li>Try all three methods: floating button, right-click menu, or <span class="code">Ctrl+Shift+C</span></li>
+                <li>Verify the success notification appears</li>
+                <li>Click the extension icon to see your selected text in the popup</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>📄 Sample Text for Selection</h2>
+            <p>
+                This is a <span class="highlight">sample paragraph</span> that you can use to test text selection. 
+                Try selecting different parts of this text to see how the extension responds. The extension 
+                should detect when you select text and show you the floating button.
+            </p>
+            <p>
+                Here's another paragraph with some <strong>bold text</strong> and <em>italic text</em>. 
+                You can select across multiple elements to test how the extension handles complex selections.
+                This text contains various formatting to ensure proper text extraction.
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>🌍 International Text</h2>
+            <p>
+                Test with international characters: Café, naïve, résumé, piñata, Москва, 东京, العربية
+            </p>
+            <p>
+                Emojis and symbols: 🚀 ✨ 🎯 🔥 💡 → ← ↑ ↓ ★ ♠ ♥ ♦ ♣
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Technical Content</h2>
+            <p>
+                Code snippets and technical terms: <code>function processText(input) { return input.trim(); }</code>
+            </p>
+            <p>
+                URLs and emails: https://github.com/example/repo, user@example.com, 192.168.1.1
+            </p>
+            <p>
+                Special characters: @#$%^&*()_+-=[]{}|;':\",./<>?`~
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>📖 Long Content</h2>
+            <p>
+                This is a longer paragraph designed to test how the extension handles larger text selections. 
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut 
+                labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco 
+                laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in 
+                voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat 
+                non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+            </p>
+            <p>
+                Select this entire paragraph to test how the extension handles longer text selections. The 
+                floating button should still appear, and the text should be processed correctly. This helps 
+                ensure that the extension can handle various text lengths without issues.
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Lists and Structured Content</h2>
+            <ul>
+                <li>First list item - try selecting this</li>
+                <li>Second list item with <strong>formatting</strong></li>
+                <li>Third item with a <a href="#">link</a></li>
+                <li>Fourth item with numbers: 123, 456, 789</li>
+            </ul>
+            
+            <h3>Nested Content</h3>
+            <div>
+                <p>This paragraph is inside a div. Test selecting across different HTML elements.</p>
+                <blockquote>
+                    "This is a quote that you can select to test quote handling."
+                </blockquote>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>✅ Testing Checklist</h3>
+            <ul>
+                <li>□ Floating button appears when selecting text</li>
+                <li>□ Right-click context menu shows "Send to Cultural Agent"</li>
+                <li>□ Keyboard shortcut <span class="code">Ctrl+Shift+C</span> works</li>
+                <li>□ Success notification appears after sending</li>
+                <li>□ Extension icon gets a green badge</li>
+                <li>□ Popup opens and shows selected text</li>
+                <li>□ Recent selections are stored and displayed</li>
+                <li>□ Clear history button works</li>
+                <li>□ No console errors in browser dev tools</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Troubleshooting</h2>
+            <p>If something isn't working:</p>
+            <ul>
+                <li>Check the browser console (F12) for errors</li>
+                <li>Go to <span class="code">about:debugging</span> and click "Inspect" next to your extension</li>
+                <li>Try reloading the extension</li>
+                <li>Make sure you're using Firefox (not Chrome)</li>
+                <li>Verify all extension files are present</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Add some dynamic content for testing
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Test page loaded - Extension should inject content script');
+            
+            // Add a timestamp for testing
+            const timestamp = new Date().toLocaleString();
+            const timestampEl = document.createElement('p');
+            timestampEl.innerHTML = `<small>Page loaded at: ${timestamp}</small>`;
+            timestampEl.style.textAlign = 'center';
+            timestampEl.style.color = '#6b7280';
+            timestampEl.style.marginTop = '40px';
+            document.querySelector('.container').appendChild(timestampEl);
+        });
+    </script>
+</body>
+</html>
