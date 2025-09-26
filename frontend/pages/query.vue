@@ -23,6 +23,20 @@
     <div v-if="result" class="results-container">
       <hr />
       
+      <!-- Display the AI Answer if available -->
+      <div v-if="result.answer" class="ai-answer">
+        <h3>AI Answer</h3>
+        <div class="answer-content">
+          {{ result.answer }}
+        </div>
+      </div>
+
+      <!-- Display error if LLM failed -->
+      <div v-if="result.error" class="llm-error">
+        <h3>LLM Error</h3>
+        <p class="error-text">{{ result.error }}</p>
+      </div>
+      
       <div class="retrieved-chunks">
         <h3>Retrieved Chunks (Context)</h3>
         <p v-if="result.retrieved_chunks.length === 0">No relevant chunks found.</p>
@@ -33,7 +47,8 @@
         </ul>
       </div>
 
-      <div class="prepared-prompt">
+      <!-- Only show prepared prompt if there's no answer (for debugging) -->
+      <div v-if="result.prepared_prompt && !result.answer" class="prepared-prompt">
         <h3>Prepared Prompt for LLM</h3>
         <pre>{{ result.prepared_prompt }}</pre>
       </div>
@@ -179,6 +194,34 @@ h3 {
   border: 1px solid #ddd;
   padding: 1rem;
   margin-bottom: 1rem;
+  border-radius: 4px;
+}
+
+.ai-answer {
+  margin-bottom: 2rem;
+}
+
+.answer-content {
+  background-color: #fff;
+  border: 2px solid #28a745;
+  border-left: 5px solid #28a745;
+  padding: 1.5rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.llm-error {
+  margin-bottom: 2rem;
+}
+
+.error-text {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 1rem;
   border-radius: 4px;
 }
 

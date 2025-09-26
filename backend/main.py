@@ -6,11 +6,17 @@ from typing import List, Dict
 import uuid
 import pandas as pd
 from pydantic import BaseModel
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
 from processing.vector_store import add_documents_to_store, get_document_count, query_store
+from llm.llm import get_public_ai_client
 
 app = FastAPI()
 
@@ -177,18 +183,29 @@ async def query_index(request: QueryRequest):
             question=request.query
         )
 
-        # Format the results for a clean API response
-        response_data = {
-            "query": request.query,
-            "results": []
-        }
+        print(f"Final prompt prepared for LLM:\n{final_prompt}")
 
-        # For now, we return the prepared prompt. The final step would be to send this to an LLM.
-        return JSONResponse(status_code=200, content={
-            "query": request.query,
-            "prepared_prompt": final_prompt,
-            "retrieved_chunks": context_chunks
-        })
+        # Use the LLM to generate a response
+        try:
+            llm_client = get_public_ai_client()
+            ai_response = llm_client.simple_chat(final_prompt)
+            print(f"LLM response received: {ai_response}")
+
+            return JSONResponse(status_code=200, content={
+                "query": request.query,
+                "answer": ai_response,
+                "retrieved_chunks": context_chunks,
+                "context_used": len(context_chunks) > 0
+            })
+        except Exception as llm_error:
+            print(f"Error with LLM client: {str(llm_error)}")
+            # If LLM fails, return the prepared prompt as fallback
+            return JSONResponse(status_code=200, content={
+                "query": request.query,
+                "prepared_prompt": final_prompt,
+                "retrieved_chunks": context_chunks,
+                "error": f"LLM unavailable: {str(llm_error)}"
+            })
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred during query: {str(e)}")
