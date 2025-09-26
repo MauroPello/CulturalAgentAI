@@ -90,6 +90,15 @@
               @close="deleteError = null"
             />
             <UTable :rows="documents" :columns="columns">
+              <template #empty-state>
+                <div class="flex flex-col items-center justify-center py-6 gap-3">
+                  <UIcon name="i-heroicons-document-text" class="w-10 h-10" />
+                  <p class="text-sm text-gray-500">No documents uploaded yet.</p>
+                  <p class="text-sm text-gray-500">
+                    Upload a document to get started.
+                  </p>
+                </div>
+              </template>
               <template #status-data="{ row }">
                 <UBadge
                   :color="row.status === 'completed' ? 'green' : 'orange'"
