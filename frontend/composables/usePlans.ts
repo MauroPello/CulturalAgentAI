@@ -27,9 +27,21 @@ export const usePlans = () => {
     plans.value = plans.value.filter((p) => p.id !== id);
   };
 
+  const createPlan = (projectName: string, projectDescription: string) => {
+    const newPlan: Plan = {
+      ...ganttData.gantt_plan,
+      id: String(plans.value.length + 1),
+      project_name: projectName,
+      project_description: projectDescription,
+    };
+    plans.value.push(newPlan);
+    return newPlan;
+  };
+
   return {
     plans,
     getPlanById,
     deletePlan,
+    createPlan,
   };
 };

@@ -20,6 +20,9 @@ const messages = ref<Message[]>([
 ]);
 
 const newMessage = ref("");
+const isModalOpen = ref(false);
+
+const { createPlan } = usePlans();
 
 function sendMessage() {
   if (newMessage.value.trim() === "") return;
@@ -40,6 +43,14 @@ function sendMessage() {
   }, 1000);
 
   newMessage.value = "";
+}
+
+function confirmBuildPlan() {
+  const newPlan = createPlan(
+    "New Market Expansion Plan",
+    "A plan to expand the business into a new country."
+  );
+  navigateTo(`/plans/${newPlan.id}`);
 }
 </script>
 
@@ -83,22 +94,84 @@ function sendMessage() {
               </div>
             </div>
           </div>
-          <div class="flex items-center gap-2 border-t p-4">
-            <UInput
-              v-model="newMessage"
-              class="flex-1"
-              placeholder="Type a message..."
-              @keyup.enter="sendMessage"
-            />
-            <UButton
-              label="Send"
-              icon="i-heroicons-paper-airplane"
-              class="ml-2"
-              @click="sendMessage"
-            />
+          <div class="flex w-full flex-col gap-3 justify-center items-center border-t p-4">
+            <div class="flex w-full items-center gap-2">
+              <UInput
+                v-model="newMessage"
+                size="xl"
+                class="flex-1 text-base"
+                placeholder="Type a message..."
+                @keyup.enter="sendMessage"
+              />
+              <UButton
+                size="xl"
+                label="Send"
+                variant="soft"
+                icon="i-heroicons-paper-airplane"
+                class="ml-2"
+                @click="sendMessage"
+              />
+              <UButton
+                size="xl"
+                color="primary"
+                variant="solid"
+                label="Build Plan"
+                icon="i-heroicons-document-plus"
+                :trailing="false"
+                @click="isModalOpen = true"
+              />
+            </div>
+            <div class="flex w-full flex-row gap-2 items-center justify-center">
+              <p>Are you satisfied with the Plan?</p>
+              <UButton
+                size="xl"
+                color="primary"
+                :padded="false"
+                variant="link"
+                class="font-bold"
+                label="Build It!"
+                @click="isModalOpen = true"
+              />
+            </div>
           </div>
         </div>
       </UCard>
+      <UModal v-model="isModalOpen">
+        <UCard
+          :ui="{
+            ring: '',
+            divide: 'divide-y divide-gray-100 dark:divide-gray-800',
+          }"
+        >
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3
+                class="text-base font-semibold leading-6 text-gray-900 dark:text-white"
+              >
+                Confirm Plan Creation
+              </h3>
+              <UButton
+                color="gray"
+                variant="ghost"
+                icon="i-heroicons-x-mark-20-solid"
+                class="-my-1"
+                @click="isModalOpen = false"
+              />
+            </div>
+          </template>
+
+          <p>Are you sure you want to create a new plan?</p>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton color="gray" variant="ghost" @click="isModalOpen = false"
+                >Cancel</UButton
+              >
+              <UButton @click="confirmBuildPlan">Create Plan</UButton>
+            </div>
+          </template>
+        </UCard>
+      </UModal>
     </main>
   </div>
 </template>

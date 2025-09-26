@@ -93,7 +93,7 @@
                     {{ chat.title }}
                   </p>
                 </div>
-                <NuxtLink to="/chat-review" class="text-primary-500 hover:underline text-sm">
+                <NuxtLink :to="`/ai-chat/${chat.id}`" class="text-primary-500 hover:underline text-sm">
                   Continue to Chat
                 </NuxtLink>
               </div>
