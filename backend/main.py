@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import uuid
 from typing import List
+import pandas as pd
 
 app = FastAPI()
 
@@ -112,18 +113,99 @@ async def upload_multiple_pdfs(files: List[UploadFile] = File(...)):
         }
     )
 
+@app.post("/upload-excel")
+async def upload_excel(file: UploadFile = File(...)):
+    # Check if file is provided
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Check file extension
+    allowed_extensions = ['.xlsx', '.xls', '.xlsm']
+    if not any(file.filename.lower().endswith(ext) for ext in allowed_extensions):
+        raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls, .xlsm) are allowed")
+    
+    # Check file size (limit to 25MB for Excel files)
+    contents = await file.read()
+    if len(contents) > 25 * 1024 * 1024:  # 25MB in bytes
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 25MB")
+    
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{file_id}{file_extension}"
+    file_path = UPLOAD_DIR / unique_filename
+    
+    try:
+        # Save file
+        with open(file_path, "wb") as buffer:
+            buffer.write(contents)
+        
+        # Try to read the Excel file to validate it and get basic info
+        try:
+            # Read Excel file to get sheet names and basic info
+            excel_file = pd.ExcelFile(file_path)
+            sheet_names = excel_file.sheet_names
+            
+            # Get info about each sheet
+            sheets_info = []
+            for sheet_name in sheet_names:
+                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                sheets_info.append({
+                    "sheet_name": sheet_name,
+                    "rows": len(df),
+                    "columns": len(df.columns),
+                    "column_names": df.columns.tolist()
+                })
+            
+            excel_file.close()
+            
+        except Exception as excel_error:
+            # If we can't read the Excel file, still save it but note the error
+            sheets_info = []
+            sheet_names = []
+            excel_read_error = str(excel_error)
+        
+        response_data = {
+            "message": "Excel file uploaded successfully",
+            "file_id": file_id,
+            "filename": file.filename,
+            "saved_as": unique_filename,
+            "file_size": len(contents),
+            "file_path": str(file_path),
+            "sheet_names": sheet_names,
+            "sheets_info": sheets_info
+        }
+        
+        # Add error info if Excel reading failed
+        if 'excel_read_error' in locals():
+            response_data["excel_read_error"] = excel_read_error
+        
+        return JSONResponse(
+            status_code=200,
+            content=response_data
+        )
+    
+    except Exception as e:
+        # Clean up file if something went wrong
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
 @app.get("/uploaded-files")
 async def list_uploaded_files():
     try:
         files = []
-        for file_path in UPLOAD_DIR.glob("*.pdf"):
-            file_stats = file_path.stat()
-            files.append({
-                "filename": file_path.name,
-                "file_size": file_stats.st_size,
-                "upload_time": file_stats.st_mtime,
-                "file_path": str(file_path)
-            })
+        # Include both PDF and Excel files
+        for pattern in ["*.pdf", "*.xlsx", "*.xls", "*.xlsm"]:
+            for file_path in UPLOAD_DIR.glob(pattern):
+                file_stats = file_path.stat()
+                files.append({
+                    "filename": file_path.name,
+                    "file_size": file_stats.st_size,
+                    "upload_time": file_stats.st_mtime,
+                    "file_path": str(file_path),
+                    "file_type": file_path.suffix
+                })
         
         return JSONResponse(
             status_code=200,
@@ -136,3 +218,69 @@ async def list_uploaded_files():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+@app.get("/excel/{file_id}")
+async def get_excel_data(file_id: str, sheet_name: str = None, limit: int = 100):
+    """
+    Get data from an uploaded Excel file.
+    
+    Args:
+        file_id: The unique ID of the uploaded file
+        sheet_name: Optional sheet name to read from (if not provided, reads first sheet)
+        limit: Maximum number of rows to return (default 100)
+    """
+    try:
+        # Find the Excel file with the given ID
+        excel_file_path = None
+        for pattern in ["*.xlsx", "*.xls", "*.xlsm"]:
+            for file_path in UPLOAD_DIR.glob(pattern):
+                if file_path.stem.startswith(file_id):
+                    excel_file_path = file_path
+                    break
+            if excel_file_path:
+                break
+        
+        if not excel_file_path:
+            raise HTTPException(status_code=404, detail="Excel file not found")
+        
+        # Read Excel file
+        excel_file = pd.ExcelFile(excel_file_path)
+        
+        # If sheet_name is not provided, use the first sheet
+        if sheet_name is None:
+            sheet_name = excel_file.sheet_names[0]
+        elif sheet_name not in excel_file.sheet_names:
+            raise HTTPException(status_code=400, detail=f"Sheet '{sheet_name}' not found. Available sheets: {excel_file.sheet_names}")
+        
+        # Read the specified sheet
+        df = pd.read_excel(excel_file_path, sheet_name=sheet_name)
+        
+        # Apply limit
+        if limit > 0:
+            df_limited = df.head(limit)
+        else:
+            df_limited = df
+        
+        # Convert to dict for JSON response
+        data = df_limited.to_dict(orient='records')
+        
+        excel_file.close()
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Excel data retrieved successfully",
+                "file_id": file_id,
+                "sheet_name": sheet_name,
+                "available_sheets": excel_file.sheet_names,
+                "total_rows": len(df),
+                "returned_rows": len(data),
+                "columns": df.columns.tolist(),
+                "data": data
+            }
+        )
+    
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Excel file not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
