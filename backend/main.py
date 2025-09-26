@@ -17,13 +17,15 @@ from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
 from processing.vector_store import vector_store_instance
 from llm.llm import get_public_ai_client
+from fastapi import Body
+from pydantic import BaseModel
 
 app = FastAPI()
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],  # Add your frontend URLs
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001", "*"],  # Add your frontend URLs and allow all origins for extension
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -238,3 +240,30 @@ async def list_uploaded_files():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+class CulturalAlignRequest(BaseModel):
+    text: str
+    target_culture: str
+    language: str
+
+@app.post("/cultural_align_text/")
+async def cultural_align_text(request: CulturalAlignRequest):
+    try:
+        llm_client = get_public_ai_client()
+        prompt = (
+            f"Create a version of the following text that is more aligned with the culture {request.target_culture}. "
+            f"It should be in the language '{request.language}'.\n\n"
+            f"TEXT:\n{request.text}\n\n"
+            "BETTER VERSION:"
+        )
+        print(f"Prompt for cultural alignment:\n{prompt}")
+        better_version = llm_client.simple_chat(prompt)
+        print(f"Better version generated:\n{better_version}")
+        return JSONResponse(status_code=200, content={
+            "text": request.text,
+            "target_culture": request.target_culture,
+            "language": request.language,
+            "better_version": better_version
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing text: {str(e)}")

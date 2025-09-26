@@ -1,0 +1,4 @@
+*.zip
+build/*
+*.sh
+TESTING.md
