@@ -67,20 +67,28 @@ function sendMessage() {
   <!-- New Chat Button -->
   <button
     @click="createNewChat"
-    class="mb-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+    class="mb-4 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
   >
     + New Chat
   </button>
 
-  <!-- Chat List -->
+  <!-- Editable Chat List -->
   <ul class="space-y-2">
     <li
       v-for="chat in previousChats"
       :key="chat.id"
-      @click="loadChat(chat)"
-      class="cursor-pointer p-2 rounded hover:bg-gray-200"
+      class="flex items-center gap-2"
     >
-      {{ chat.title }}
+      <input
+        v-model="chat.title"
+        class="flex-1 p-2 rounded border bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
+      <button
+        @click="loadChat(chat)"
+        class="px-3 py-2 bg-gray-300 rounded hover:bg-gray-400"
+      >
+        Open
+      </button>
     </li>
   </ul>
 </aside>
