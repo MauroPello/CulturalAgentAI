@@ -1,0 +1,615 @@
+openapi: 3.0.3
+info:
+  title: Intelligent Document Processing API
+  description: AI-powered document processing with intelligent search routing
+  version: 2.0.0
+  contact:
+    name: CulturalAgentAI
+    url: https://github.com/MauroPello/CulturalAgentAI
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: http://127.0.0.1:8000
+    description: Local development server (alternative)
+
+tags:
+  - name: health
+    description: Health check and API information
+  - name: documents
+    description: Document upload and processing
+  - name: search
+    description: Intelligent search operations
+  - name: cultural
+    description: Cultural alignment operations
+  - name: gantt
+    description: Gantt chart generation
+  - name: files
+    description: File management operations
+
+paths:
+  /:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Returns API status and version information
+      operationId: read_root
+      responses:
+        "200":
+          description: API is running successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Intelligent Document Processing API v2.0 - Now with smart search routing!"
+
+  /process-documents/:
+    post:
+      tags: [documents]
+      summary: Process and upload documents
+      description: Uploads one or more documents, extracts text, chunks it, and stores it in the vector database
+      operationId: process_documents_endpoint
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more files to process (PDF, DOCX, XLSX, XLS, TXT)
+              required:
+                - files
+      responses:
+        "200":
+          description: Documents processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentProcessingResponse'
+        "400":
+          description: All files failed to process
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /ask:
+    post:
+      tags: [search]
+      summary: Ask intelligent question
+      description: Main endpoint for asking questions using intelligent search routing
+      operationId: ask_intelligent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntelligentSearchRequest'
+      responses:
+        "200":
+          description: Question answered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntelligentSearchResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /uploaded-files:
+    get:
+      tags: [files]
+      summary: List uploaded files
+      description: Returns a list of all uploaded files with their metadata
+      operationId: list_uploaded_files
+      responses:
+        "200":
+          description: Files retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedFilesResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cultural_align_text/:
+    post:
+      tags: [cultural]
+      summary: Align text to target culture
+      description: Adapts text to be more aligned with a specific culture and language
+      operationId: cultural_align_text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CulturalAlignRequest'
+      responses:
+        "200":
+          description: Text aligned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CulturalAlignResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /convert:
+    post:
+      tags: [gantt]
+      summary: Convert to Gantt chart
+      description: Converts a business plan description to a structured Gantt chart JSON
+      operationId: convert_to_gantt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GanttRequest'
+      responses:
+        "200":
+          description: Gantt chart generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIGanttResponse'
+        "400":
+          description: Invalid request (empty description)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Configuration or processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/intelligent:
+    post:
+      tags: [search]
+      summary: Intelligent search
+      description: Intelligent search endpoint with automatic strategy determination
+      operationId: intelligent_search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntelligentSearchRequest'
+      responses:
+        "200":
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntelligentSearchResponse'
+        "500":
+          description: Search failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/analyze-query:
+    post:
+      tags: [search]
+      summary: Analyze query only
+      description: Analyzes a query without executing the search - useful for debugging
+      operationId: analyze_query_only
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Query to analyze
+      responses:
+        "200":
+          description: Query analyzed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryAnalysis'
+        "500":
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /search/strategies:
+    get:
+      tags: [search]
+      summary: Get available strategies
+      description: Returns list of available search strategies and their descriptions
+      operationId: get_available_strategies
+      responses:
+        "200":
+          description: Strategies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategiesResponse'
+
+  /search/stats:
+    get:
+      tags: [search]
+      summary: Get usage statistics
+      description: Returns usage statistics including token consumption
+      operationId: get_stats
+      responses:
+        "200":
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+components:
+  schemas:
+    # Enums
+    SearchStrategy:
+      type: string
+      enum: [RAG, WEB, DIRECT, HYBRID]
+      description: Search strategy type
+
+    # Core Models
+    SearchResult:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Source of the result (rag, web, direct)
+        title:
+          type: string
+          nullable: true
+          description: Result title
+        content:
+          type: string
+          description: Result content
+        url:
+          type: string
+          nullable: true
+          description: Source URL (if applicable)
+        relevance_score:
+          type: number
+          nullable: true
+          description: Relevance score (0-1)
+      required: [source, content]
+
+    QueryAnalysis:
+      type: object
+      properties:
+        strategy:
+          $ref: '#/components/schemas/SearchStrategy'
+        confidence:
+          type: number
+          description: Confidence score (0-10)
+        backup_strategy:
+          $ref: '#/components/schemas/SearchStrategy'
+          nullable: true
+        reasoning:
+          type: string
+          description: Analysis reasoning
+        key_factors:
+          type: array
+          items:
+            type: string
+          description: Key decision factors
+        temporal_indicators:
+          type: array
+          items:
+            type: string
+          description: Temporal keywords found
+        internal_references:
+          type: array
+          items:
+            type: string
+          description: Internal reference keywords found
+      required: [strategy, confidence, reasoning, key_factors]
+
+    # Request Models
+    IntelligentSearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query
+        user_id:
+          type: string
+          nullable: true
+          description: Optional user identifier
+        session_id:
+          type: string
+          nullable: true
+          description: Optional session identifier
+        force_strategy:
+          $ref: '#/components/schemas/SearchStrategy'
+          nullable: true
+          description: Force a specific search strategy
+      required: [query]
+
+    CulturalAlignRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Text to align culturally
+        target_culture:
+          type: string
+          description: Target culture for alignment
+        language:
+          type: string
+          description: Target language
+      required: [text, target_culture, language]
+
+    GanttRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          minLength: 10
+          description: Business plan description
+        project_name:
+          type: string
+          nullable: true
+          description: Optional project name
+      required: [description]
+
+    # Response Models
+    IntelligentSearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Original query
+        strategy_used:
+          $ref: '#/components/schemas/SearchStrategy'
+        confidence:
+          type: number
+          description: Confidence score
+        answer:
+          type: string
+          description: Generated answer
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+          description: Search results sources
+        analysis:
+          $ref: '#/components/schemas/QueryAnalysis'
+        execution_time:
+          type: number
+          description: Execution time in seconds
+        tokens_used:
+          type: integer
+          description: Number of tokens used
+      required: [query, strategy_used, confidence, answer, sources, analysis, execution_time, tokens_used]
+
+    DocumentProcessingResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Processing status message
+        processed_files:
+          type: array
+          items:
+            type: object
+            properties:
+              file_id:
+                type: string
+                description: Unique file identifier
+              filename:
+                type: string
+                description: Original filename
+              chunks_added:
+                type: integer
+                description: Number of chunks added to vector store
+            required: [file_id, filename, chunks_added]
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+                description: Filename that failed
+              error:
+                type: string
+                description: Error message
+            required: [filename, error]
+        total_chunks_added:
+          type: integer
+          description: Total chunks added across all files
+        total_documents_in_store:
+          type: integer
+          description: Total documents in vector store
+      required: [message, processed_files, errors, total_chunks_added, total_documents_in_store]
+
+    UploadedFilesResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+                description: File name
+              file_size:
+                type: integer
+                description: File size in bytes
+              upload_time:
+                type: number
+                description: Upload timestamp
+              file_path:
+                type: string
+                description: File path
+              file_type:
+                type: string
+                description: File extension
+            required: [filename, file_size, upload_time, file_path, file_type]
+        total_files:
+          type: integer
+          description: Total number of files
+      required: [message, files, total_files]
+
+    CulturalAlignResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Original text
+        target_culture:
+          type: string
+          description: Target culture
+        language:
+          type: string
+          description: Target language
+        better_version:
+          type: string
+          description: Culturally aligned version
+      required: [text, target_culture, language, better_version]
+
+    APIGanttResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Request success status
+        gantt_plan:
+          type: object
+          nullable: true
+          description: Generated Gantt plan data
+        error:
+          type: string
+          nullable: true
+          description: Error message if request failed
+        processing_time_seconds:
+          type: number
+          nullable: true
+          description: Request processing time
+        api_version:
+          type: string
+          default: "1.0.0"
+          description: API version
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+      required: [success]
+
+    StrategiesResponse:
+      type: object
+      properties:
+        strategies:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchStrategy'
+          description: Available strategies
+        descriptions:
+          type: object
+          properties:
+            RAG:
+              type: string
+              description: RAG strategy description
+            WEB:
+              type: string
+              description: Web search strategy description
+            DIRECT:
+              type: string
+              description: Direct LLM strategy description
+            HYBRID:
+              type: string
+              description: Hybrid strategy description
+          required: [RAG, WEB, DIRECT, HYBRID]
+      required: [strategies, descriptions]
+
+    StatsResponse:
+      type: object
+      properties:
+        total_tokens_used:
+          type: integer
+          description: Total tokens consumed
+        model:
+          type: string
+          description: LLM model being used
+      required: [total_tokens_used, model]
+
+    # Error Models
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error detail message
+      required: [detail]
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                description: Error location
+              msg:
+                type: string
+                description: Error message
+              type:
+                type: string
+                description: Error type
+            required: [loc, msg, type]
+      required: [detail]
+
+  # Security schemes (if needed in the future)
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+# Global security (commented out for now as the API is currently open)
+# security:
+#   - BearerAuth: []

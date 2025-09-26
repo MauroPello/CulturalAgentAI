@@ -5,8 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import List, Dict
 import uuid
+import logging
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
@@ -83,17 +88,17 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
     for file in files:
         file_path = None
         try:
-            print(f"Starting document processing for file: {file.filename}")
-            print(f"File content type: {file.content_type}")
+            logger.info(f"Starting document processing for file: {file.filename}")
+            logger.info(f"File content type: {file.content_type}")
 
             # Validate file type
             if file.content_type not in SUPPORTED_FILE_TYPES:
                 error_message = f"Unsupported file type: {file.content_type}. Supported types are: {list(SUPPORTED_FILE_TYPES.keys())}"
-                print(error_message)
+                logger.error(error_message)
                 errors.append({"filename": file.filename, "error": error_message})
                 continue
 
-            print(f"File type validation passed")
+            logger.info(f"File type validation passed")
 
             # Save file temporarily
             file_extension = SUPPORTED_FILE_TYPES[file.content_type]
@@ -101,40 +106,47 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
             unique_filename = f"{file_id}{file_extension}"
             file_path = UPLOAD_DIR / unique_filename
             
-            print(f"Saving file as: {unique_filename}")
+            logger.info(f"Saving file as: {unique_filename}")
 
             contents = await file.read()
-            print(f"File size: {len(contents)} bytes")
+            logger.info(f"File size: {len(contents)} bytes")
+            
+            if len(contents) == 0:
+                error_message = "File is empty or could not be read"
+                logger.error(error_message)
+                errors.append({"filename": file.filename, "error": error_message})
+                continue
+                
             with open(file_path, "wb") as buffer:
                 buffer.write(contents)
-            print(f"File saved successfully to: {file_path}")
+            logger.info(f"File saved successfully to: {file_path}")
 
             # Load and process the document using your modules
-            print(f"Loading document text from: {file.filename}")
+            logger.info(f"Loading document text from: {file.filename}")
             document_text = load_document_text(file_path, file.filename)
             if not document_text or not document_text.strip():
                 error_message = "No text could be extracted from the document."
-                print(error_message)
+                logger.error(error_message)
                 errors.append({"filename": file.filename, "error": error_message})
                 continue
             
-            print(f"Document text loaded successfully (length: {len(document_text)} characters)")
+            logger.info(f"Document text loaded successfully (length: {len(document_text)} characters)")
 
             # Chunk the text
-            print(f"Chunking the document text...")
+            logger.info(f"Chunking the document text...")
             chunks = chunk_text(document_text)
-            print(f"Text chunked into {len(chunks)} chunks")
+            logger.info(f"Text chunked into {len(chunks)} chunks")
 
             # Embed the chunks
-            print(f"Creating embeddings for {len(chunks)} chunks...")
+            logger.info(f"Creating embeddings for {len(chunks)} chunks...")
             embeddings = embed_chunks(chunks)
-            print(f"Embeddings created successfully ({len(embeddings)} embeddings)")
+            logger.info(f"Embeddings created successfully ({len(embeddings)} embeddings)")
 
             # Store in vector db
-            print(f"Storing chunks and embeddings in vector database...")
+            logger.info(f"Storing chunks and embeddings in vector database...")
             metadatas = [{"filename": file.filename, "file_id": file_id} for _ in chunks]
             vector_store_instance.add_documents(chunks, embeddings, metadatas)
-            print(f"Documents stored successfully in vector database")
+            logger.info(f"Documents stored successfully in vector database")
 
             total_chunks_added += len(chunks)
             processed_files.append({
@@ -142,17 +154,20 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
                 "filename": file.filename,
                 "chunks_added": len(chunks)
             })
-            print(f"Document processing for {file.filename} completed successfully!")
+            logger.info(f"Document processing for {file.filename} completed successfully!")
 
         except Exception as e:
             error_detail = f"An unexpected error occurred: {str(e)}"
-            print(f"Error processing {file.filename}: {error_detail}")
+            logger.error(f"Error processing {file.filename}: {error_detail}")
             errors.append({"filename": file.filename, "error": error_detail})
         finally:
             # Clean up the saved file
             if file_path and file_path.exists():
-                file_path.unlink()
-                print(f"Temporary file cleaned up: {file_path}")
+                try:
+                    file_path.unlink()
+                    logger.info(f"Temporary file cleaned up: {file_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temporary file {file_path}: {cleanup_error}")
 
     total_docs = vector_store_instance.get_count()
     
