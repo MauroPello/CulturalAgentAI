@@ -135,6 +135,16 @@
           <template #header>
             <h2 class="text-xl font-bold">All Documents</h2>
           </template>
+          <UAlert
+            v-if="deleteError"
+            title="Error Deleting Document"
+            :description="deleteError"
+            color="red"
+            variant="subtle"
+            class="mb-4"
+            :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'red', variant: 'ghost' }"
+            @close="deleteError = null"
+          />
           <UTable :rows="documents" :columns="columns">
             <template #status-data="{ row }">
               <UBadge
@@ -143,6 +153,18 @@
               >
                 {{ row.status }}
               </UBadge>
+            </template>
+            <template #actions-data="{ row }">
+              <div class="flex justify-end">
+                <UButton
+                  icon="i-heroicons-trash"
+                  size="sm"
+                  color="red"
+                  variant="ghost"
+                  :loading="isDeleting"
+                  @click="() => handleDelete(row)"
+                />
+              </div>
             </template>
           </UTable>
         </UCard>
@@ -172,6 +194,7 @@ interface QueryResult {
 const columns = [
   { key: "name", label: "Document Name" },
   { key: "status", label: "Status" },
+  { key: "actions", label: "Actions", class: "text-right" },
 ];
 const documents = ref<Document[]>([
   { id: 1, name: "Document 1.pdf", status: "completed" },
@@ -246,6 +269,42 @@ const uploadFile = async () => {
   const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
   if (fileInput) fileInput.value = "";
   // TODO: Refresh the document list
+};
+
+// --- Delete ---
+const isDeleting = ref(false);
+const deleteError = ref<string | null>(null);
+
+const handleDelete = async (document: Document) => {
+  if (confirm(`Are you sure you want to delete "${document.name}"?`)) {
+    await deleteDocument(document.id);
+  }
+};
+
+const deleteDocument = async (documentId: number) => {
+  isDeleting.value = true;
+  deleteError.value = null;
+  try {
+    const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to delete document.');
+    }
+
+    // Refresh list on success
+    documents.value = documents.value.filter(d => d.id !== documentId);
+  } catch (err) {
+    if (err instanceof Error) {
+      deleteError.value = err.message;
+    } else {
+      deleteError.value = 'An unknown error occurred during deletion.';
+    }
+  } finally {
+    isDeleting.value = false;
+  }
 };
 
 // --- Query ---
