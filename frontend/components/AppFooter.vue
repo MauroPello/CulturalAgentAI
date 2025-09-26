@@ -11,16 +11,15 @@ import { companyName } from "~/constants/company";
       <BaseLogo />
       <p>{{ companyName }}</p>
     </NuxtLink>
-    <p>© {{ new Date().getFullYear() }} {{ companyName }}</p>
   </div>
 </template>
 
 <style lang="postcss" scoped>
 .landing-page-footer {
-  @apply flex flex-col items-center justify-center gap-2 bg-primary-300 px-4 py-8;
+  @apply flex flex-col items-center justify-center gap-2 bg-primary-300 px-4 py-8 mt-10;
 
   &__logo__link {
-    @apply flex items-center gap-2 pb-4;
+    @apply flex items-center gap-2;
     @apply text-2xl;
     font-weight: 500;
   }

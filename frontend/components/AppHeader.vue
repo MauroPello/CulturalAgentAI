@@ -8,7 +8,7 @@ const route = useRoute();
 <template>
   <div class="landing-page-navigator__container">
     <div
-      class="flex flex-row items-center justify-center text-white bg-primary-500 w-full py-0.5 cursor-pointer text-center"
+      class="flex flex-row items-center justify-center text-white bg-fuchsia-800 w-full py-0.5 cursor-pointer text-center"
       @click="async () => await navigateTo('/user-welcome')"
     >
       <div class="overflow-hidden w-full">
@@ -29,9 +29,7 @@ const route = useRoute();
           class="landing-page-navigator__logo__link"
           :to="route.path === '/' ? '/' : '/user-welcome'"
         >
-          <BaseLogo
-            :small="true"
-          />
+          <BaseLogo />
           <p>{{ companyName }}</p>
         </NuxtLink>
         <template v-if="route.path !== '/'">
@@ -67,14 +65,6 @@ const route = useRoute();
           >
             Review Chat
           </UButton>
-          <UButton
-            size="sm"
-            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-            variant="ghost"
-            to="/gantt"
-          >
-            Gantt
-          </UButton>
         </template>
       </div>
       <ClientOnly>
@@ -93,7 +83,7 @@ const route = useRoute();
           <UButton
             :label="isMinimumSm ? 'Start Planning' : 'Start'"
             :size="isMinimumSm ? 'lg' : 'md'"
-            class="text-base"
+            class="text-base !bg-fuchsia-800"
             :to="route.path === '/' ? '/user-welcome' : '/new-plan'"
           />
         </div>
