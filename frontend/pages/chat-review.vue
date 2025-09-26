@@ -15,8 +15,9 @@
             class="w-full"
             placeholder="Paste your messages here..."
             :rows="10"
+            size="lg"
           />
-          <UButton class="mt-4" @click="analyzeText"> Analyze </UButton>
+          <UButton class="mt-4" size="xl" @click="analyzeText"> Analyze </UButton>
         </div>
         <div v-if="analysisResult" class="mt-8">
           <h2 class="text-xl font-bold mb-2">Analysis Result</h2>
@@ -27,9 +28,6 @@
         </div>
         <div v-else-if="error" class="mt-8 text-center text-red-500">
           <p>{{ error }}</p>
-        </div>
-        <div v-else class="mt-8 text-center text-gray-500">
-          <p>The analysis result will be displayed here.</p>
         </div>
       </UCard>
     </div>
