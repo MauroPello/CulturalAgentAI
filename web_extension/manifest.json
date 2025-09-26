@@ -1,5 +1,5 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Cultural Agent Text Selector",
   "version": "1.0.0",
   "description": "Select text on web pages and send it to Cultural Agent AI",
@@ -11,8 +11,8 @@
   ],
   
   "background": {
-    "scripts": ["background.js"],
-    "persistent": false
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
   },
   
   "content_scripts": [
@@ -23,7 +23,7 @@
     }
   ],
   
-  "browser_action": {
+  "action": {
     "default_popup": "popup.html",
     "default_title": "Cultural Agent Text Selector",
     "default_icon": {
@@ -42,6 +42,9 @@
   },
   
   "web_accessible_resources": [
-    "content.css"
+    {
+      "resources": ["content.css"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }

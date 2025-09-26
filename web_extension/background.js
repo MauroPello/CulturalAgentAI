@@ -1,9 +1,12 @@
-// Background script for handling extension events
-console.log('Cultural Agent Extension background script loaded');
+// Background service worker for handling extension events
+console.log('Cultural Agent Extension background service worker loaded');
+
+// Use chrome API with fallback to browser API for cross-browser compatibility
+const api = typeof browser !== 'undefined' ? browser : chrome;
 
 // Create context menu when extension starts
-browser.runtime.onInstalled.addListener(() => {
-  browser.contextMenus.create({
+api.runtime.onInstalled.addListener(() => {
+  api.contextMenus.create({
     id: "send-to-cultural-agent",
     title: "Send to Cultural Agent",
     contexts: ["selection"]
@@ -11,14 +14,14 @@ browser.runtime.onInstalled.addListener(() => {
 });
 
 // Handle context menu clicks
-browser.contextMenus.onClicked.addListener((info, tab) => {
+api.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "send-to-cultural-agent" && info.selectionText) {
     handleSelectedText(info.selectionText, tab);
   }
 });
 
 // Handle messages from content script
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "sendSelectedText") {
     handleSelectedText(request.text, sender.tab);
     sendResponse({ success: true });
@@ -32,7 +35,7 @@ async function handleSelectedText(text, tab) {
     console.log('From tab:', tab.url);
     
     // Store the selected text in storage for popup to access
-    await browser.storage.local.set({
+    await api.storage.local.set({
       lastSelectedText: text,
       lastSelectedUrl: tab.url,
       lastSelectedTime: new Date().toISOString()
@@ -43,24 +46,35 @@ async function handleSelectedText(text, tab) {
     await processTextWithCulturalAgent(text, tab.url);
     
     // Notify user of success and prompt to view results
-    browser.tabs.sendMessage(tab.id, {
+    api.tabs.sendMessage(tab.id, {
       action: "showSuccessNotification",
       message: "Text sent to Cultural Agent successfully!",
       showPopupPrompt: true
     });
     
     // Add a badge to the extension icon to draw attention
-    browser.browserAction.setBadgeText({ text: "●" });
-    browser.browserAction.setBadgeBackgroundColor({ color: "#10B981" });
-    
-    // Remove the badge after a few seconds
-    setTimeout(() => {
-      browser.browserAction.setBadgeText({ text: "" });
-    }, 5000);
+    // Use action API for Manifest V3
+    if (api.action) {
+      api.action.setBadgeText({ text: "●" });
+      api.action.setBadgeBackgroundColor({ color: "#10B981" });
+      
+      // Remove the badge after a few seconds
+      setTimeout(() => {
+        api.action.setBadgeText({ text: "" });
+      }, 5000);
+    } else {
+      // Fallback for older browsers
+      api.browserAction.setBadgeText({ text: "●" });
+      api.browserAction.setBadgeBackgroundColor({ color: "#10B981" });
+      
+      setTimeout(() => {
+        api.browserAction.setBadgeText({ text: "" });
+      }, 5000);
+    }
     
   } catch (error) {
     console.error('Error handling selected text:', error);
-    browser.tabs.sendMessage(tab.id, {
+    api.tabs.sendMessage(tab.id, {
       action: "showNotification",
       message: "Error: Failed to send text to Cultural Agent",
       type: "error"
@@ -71,7 +85,7 @@ async function handleSelectedText(text, tab) {
 // Method to process text with Cultural Agent (customize this for your needs)
 async function processTextWithCulturalAgent(text, sourceUrl) {
   // Get the selected culture and language from storage
-  const data = await browser.storage.local.get(['selectedCulture', 'selectedLanguage']);
+  const data = await api.storage.local.get(['selectedCulture', 'selectedLanguage']);
   const selectedCulture = data.selectedCulture || 'us';
   const selectedLanguage = data.selectedLanguage || 'en';
   
@@ -100,7 +114,7 @@ async function processTextWithCulturalAgent(text, sourceUrl) {
   // });
   
   // For demonstration, we'll just store it locally
-  const existingData = await browser.storage.local.get('processedTexts') || {};
+  const existingData = await api.storage.local.get('processedTexts') || {};
   const processedTexts = existingData.processedTexts || [];
   
   processedTexts.push({
@@ -112,7 +126,7 @@ async function processTextWithCulturalAgent(text, sourceUrl) {
     id: Date.now().toString()
   });
   
-  await browser.storage.local.set({ processedTexts: processedTexts });
+  await api.storage.local.set({ processedTexts: processedTexts });
   
   return { success: true, processed: true };
 }
