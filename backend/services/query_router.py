@@ -207,13 +207,16 @@ class QueryRouter:
         
         try:
             if strategy == SearchStrategy.RAG:
+                print("Executing RAG search...")
                 results = await self.rag_service.search(query)
                 
             elif strategy == SearchStrategy.WEB:
+                print("Executing Web search...")
                 results = await self.web_search_service.search(query)
                 
             elif strategy == SearchStrategy.HYBRID:
                 # Execute both searches in parallel
+                print("Executing Hybrid search (RAG + Web)...")
                 rag_task = self.rag_service.search(query)
                 web_task = self.web_search_service.search(query)
                 
@@ -226,6 +229,7 @@ class QueryRouter:
                     results.extend(web_results)
                     
             elif strategy == SearchStrategy.DIRECT:
+                print("No search needed, using Direct response.")
                 # No external search needed
                 results = []
             
