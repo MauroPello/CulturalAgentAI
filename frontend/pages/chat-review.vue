@@ -30,11 +30,34 @@ import { ref } from "vue";
 
 const textInput = ref("");
 const analysisResult = ref("");
+const loading = ref(false);
+const error = ref<string | null>(null);
 
 const analyzeText = async () => {
-  // This is where the API call will be made.
-  // For now, we'll just simulate a result.
-  analysisResult.value = "This is a placeholder for the LLM evaluation result.";
+  if (!textInput.value.trim()) {
+    error.value = "Please paste some text to analyze.";
+    analysisResult.value = "";
+    return;
+  }
+
+  loading.value = true;
+  analysisResult.value = "";
+  error.value = null;
+
+  try {
+    const response = await $fetch<{ answer: string }>("http://127.0.0.1:8000/ask", {
+      method: "POST",
+      body: {
+        query: textInput.value,
+      },
+    });
+    analysisResult.value = response.answer;
+  } catch (e: any) {
+    error.value = "An error occurred while analyzing the text. Please try again.";
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
