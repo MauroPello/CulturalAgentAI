@@ -51,9 +51,9 @@
         </div>
         <UAlert
           v-if="uploadStatus"
-          :title="uploadStatus.includes('successfully') ? 'Success' : 'Error'"
+          :title="uploadStatus.includes('SUCCESS:') ? 'Success' : 'Error'"
           :description="uploadStatus"
-          :color="uploadStatus.includes('successfully') ? 'green' : 'red'"
+          :color="uploadStatus.includes('SUCCESS:') ? 'green' : 'red'"
           variant="subtle"
           class="mt-4"
         />
@@ -263,32 +263,43 @@ const uploadFile = async () => {
 
   isUploading.value = true;
   uploadStatus.value = "";
-  const uploadResults: string[] = [];
 
-  for (const file of selectedFiles.value) {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("http://localhost:8000/process-document/", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        uploadResults.push(`SUCCESS: '${file.name}' processed (${result.chunks_added} chunks created).`);
-      } else {
-        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
-        uploadResults.push(`ERROR: Upload failed for '${file.name}': ${errorData.detail}`);
-      }
-    } catch (error) {
-      uploadResults.push(`ERROR: Network error for '${file.name}': ${error instanceof Error ? error.message : "Unknown"}`);
+  try {
+    const formData = new FormData();
+    
+    // Append all files with the correct parameter name "files"
+    for (const file of selectedFiles.value) {
+      formData.append("files", file);
     }
+
+    const response = await fetch("http://localhost:8000/process-documents/", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.processed_files && result.processed_files.length > 0) {
+        const successMessages = result.processed_files.map((file: any) => 
+          `SUCCESS: '${file.filename}' processed (${file.chunks_added} chunks created).`
+        );
+        const errorMessages = result.errors?.map((error: any) => 
+          `ERROR: ${error.filename}: ${error.error}`
+        ) || [];
+        
+        uploadStatus.value = [...successMessages, ...errorMessages].join("\n");
+      } else {
+        uploadStatus.value = "Upload completed but no files were processed successfully.";
+      }
+    } else {
+      const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+      uploadStatus.value = `ERROR: Upload failed: ${errorData.detail}`;
+    }
+  } catch (error) {
+    uploadStatus.value = `ERROR: Network error: ${error instanceof Error ? error.message : "Unknown"}`;
   }
 
   isUploading.value = false;
-  uploadStatus.value = uploadResults.join("\n");
   selectedFiles.value = [];
   const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
   if (fileInput) fileInput.value = "";

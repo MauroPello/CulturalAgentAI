@@ -19,6 +19,7 @@ from models.schemas import IntelligentSearchRequest, IntelligentSearchResponse
 from dependencies import get_query_router
 from services.query_router import QueryRouter
 import time
+from services.llm_services import get_public_ai_client
 
 app = FastAPI(
     title="Intelligent Document Processing API",
@@ -29,7 +30,13 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000", 
+        "http://localhost:3001", 
+        "http://127.0.0.1:3001"
+    ],
+    allow_origin_regex=r"^(chrome-extension|moz-extension)://.*",  # Allow browser extensions
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
