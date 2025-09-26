@@ -22,9 +22,17 @@
         @click="goToPlan(plan.id)"
       >
         <template #header>
-          <h2 class="font-bold">
-            {{ plan.project_name }}
-          </h2>
+          <div class="flex items-center justify-between">
+            <h2 class="font-bold">
+              {{ plan.project_name }}
+            </h2>
+            <UButton
+              icon="i-heroicons-trash"
+              color="red"
+              variant="ghost"
+              @click.stop="handleDeletePlan(plan.id)"
+            />
+          </div>
         </template>
         <p>{{ plan.project_description }}</p>
       </UCard>
@@ -35,7 +43,7 @@
 <script setup lang="ts">
 import { usePlans } from "~/composables/usePlans";
 
-const { plans } = usePlans();
+const { plans, deletePlan } = usePlans();
 
 const router = useRouter();
 
@@ -45,5 +53,11 @@ const startNewPlanChat = () => {
 
 const goToPlan = (planId: string) => {
   router.push(`/plans/${planId}`);
+};
+
+const handleDeletePlan = (planId: string) => {
+  if (confirm("Are you sure you want to delete this plan?")) {
+    deletePlan(planId);
+  }
 };
 </script>

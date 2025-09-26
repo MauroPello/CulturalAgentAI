@@ -30,19 +30,23 @@
               type="file"
               class="hidden"
               accept=".pdf,.docx,.xlsx,.xls,.txt"
+              multiple
               @change="handleFileChange"
             >
           </label>
         </div>
-        <div v-if="selectedFile" class="mt-4">
-          <p>Selected file: {{ selectedFile.name }}</p>
+        <div v-if="selectedFiles.length > 0" class="mt-4">
+          <p>Selected files:</p>
+          <ul class="list-disc pl-5">
+            <li v-for="file in selectedFiles" :key="file.name">{{ file.name }}</li>
+          </ul>
           <UButton
             class="mt-2"
             :loading="isUploading"
             :disabled="isUploading"
             @click="uploadFile"
           >
-            {{ isUploading ? 'Uploading...' : 'Upload' }}
+            {{ isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} file(s)` }}
           </UButton>
         </div>
         <UAlert
@@ -177,14 +181,14 @@ const documents = ref<Document[]>([
 // TODO: Fetch documents from an API onMounted
 
 // --- Upload ---
-const selectedFile = ref<File | null>(null);
+const selectedFiles = ref<File[]>([]);
 const isUploading = ref(false);
 const uploadStatus = ref<string>("");
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    const file = target.files[0];
+    const files = Array.from(target.files);
     const allowedTypes = [
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -192,47 +196,56 @@ const handleFileChange = (event: Event) => {
       "application/vnd.ms-excel",
       "text/plain",
     ];
-    if (file && allowedTypes.includes(file.type)) {
-      selectedFile.value = file;
-      uploadStatus.value = "";
+
+    const validFiles = files.filter(file => allowedTypes.includes(file.type));
+
+    if (validFiles.length !== files.length) {
+      uploadStatus.value = "Upload failed: Some files have invalid types. Only PDF, DOCX, XLSX, XLS, TXT are allowed.";
+      // Keep only valid files, or clear all? For now, let's just warn and not add any.
+      target.value = ""; // Clear the input
+      selectedFiles.value = [];
     } else {
-      uploadStatus.value = "Upload failed: Please select a valid file type (PDF, DOCX, XLSX, XLS, TXT).";
-      target.value = "";
+      selectedFiles.value = validFiles;
+      uploadStatus.value = "";
     }
   }
 };
 
 const uploadFile = async () => {
-  if (!selectedFile.value) return;
+  if (selectedFiles.value.length === 0) return;
 
   isUploading.value = true;
   uploadStatus.value = "";
+  const uploadResults: string[] = [];
 
-  try {
-    const formData = new FormData();
-    formData.append("file", selectedFile.value);
+  for (const file of selectedFiles.value) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch("http://localhost:8000/process-document/", {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch("http://localhost:8000/process-document/", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      uploadStatus.value = `Document processed successfully! ${result.chunks_added} chunks created.`;
-      selectedFile.value = null;
-      const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
-      // TODO: Refresh the document list
-    } else {
-      const errorData = await response.json().catch(() => ({ detail: "Upload failed" }));
-      uploadStatus.value = `Upload failed: ${errorData.detail || "Unknown error"}`;
+      if (response.ok) {
+        const result = await response.json();
+        uploadResults.push(`SUCCESS: '${file.name}' processed (${result.chunks_added} chunks created).`);
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        uploadResults.push(`ERROR: Upload failed for '${file.name}': ${errorData.detail}`);
+      }
+    } catch (error) {
+      uploadResults.push(`ERROR: Network error for '${file.name}': ${error instanceof Error ? error.message : "Unknown"}`);
     }
-  } catch (error) {
-    uploadStatus.value = `Upload failed: ${error instanceof Error ? error.message : "Network error"}`;
-  } finally {
-    isUploading.value = false;
   }
+
+  isUploading.value = false;
+  uploadStatus.value = uploadResults.join("\n");
+  selectedFiles.value = [];
+  const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
+  if (fileInput) fileInput.value = "";
+  // TODO: Refresh the document list
 };
 
 // --- Query ---

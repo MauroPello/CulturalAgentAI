@@ -16,15 +16,20 @@ const plansData: Plan[] = [
   },
 ];
 
-export const usePlans = () => {
-  const plans = ref<Plan[]>(plansData);
+const plans = ref<Plan[]>(plansData);
 
+export const usePlans = () => {
   const getPlanById = (id: string) => {
     return plans.value.find((p) => p.id === id);
+  };
+
+  const deletePlan = (id: string) => {
+    plans.value = plans.value.filter((p) => p.id !== id);
   };
 
   return {
     plans,
     getPlanById,
+    deletePlan,
   };
 };
