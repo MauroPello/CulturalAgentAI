@@ -57,6 +57,14 @@ const { isMinimumSm, width } = useScreenSize();
         >
           Review Chat
         </UButton>
+        <UButton
+          size="sm"
+          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+          variant="ghost"
+          to="/chat"
+        >
+          Chat
+        </UButton>
       </div>
       <ClientOnly>
         <div class="landing-page-navigator__group !gap-0">
