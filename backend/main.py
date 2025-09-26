@@ -21,6 +21,13 @@ from services.query_router import QueryRouter
 import time
 from services.llm_services import get_public_ai_client
 
+try:
+    from api.gantt.app import app as gantt_app
+    GANTT_API_AVAILABLE = True
+except ImportError as e:
+    print(f"SwissAI Gantt Planner API not available: {e}")
+    GANTT_API_AVAILABLE = False
+
 app = FastAPI(
     title="Intelligent Document Processing API",
     description="AI-powered document processing with intelligent search routing",
@@ -243,3 +250,27 @@ async def cultural_align_text(request: CulturalAlignRequest):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing text: {str(e)}")
+
+# Include SwissAI Gantt Planner API information in the main app
+if GANTT_API_AVAILABLE:
+    @app.get("/gantt-api-info")
+    async def gantt_api_info():
+        """Information about the SwissAI Gantt Planner API service."""
+        return {
+            "service": "SwissAI Gantt Planner API",
+            "status": "available",
+            "description": "Self-contained API for business plan to Gantt chart conversion",
+            "access": {
+                "standalone": "http://localhost:8001",
+                "endpoints": [
+                    "/docs - API documentation",
+                    "/health - Health check",
+                    "/convert - Convert business description to Gantt plan"
+                ]
+            },
+            "note": "This is a separate API service. Run with: python api/gantt/start_api.py"
+        }
+    
+    print("SwissAI Gantt Planner API available at /gantt-api-info")
+else:
+    print("SwissAI Gantt Planner API not available")
