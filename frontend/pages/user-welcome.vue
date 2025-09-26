@@ -20,7 +20,7 @@
           </h2>
         </div>
         <UCard>
-          <div class="space-y-2 max-h-64 overflow-y-auto">
+          <div v-if="latestPlans.length > 0" class="space-y-2 max-h-64 overflow-y-auto">
             <NuxtLink
               v-for="plan in latestPlans"
               :key="plan.id"
@@ -37,6 +37,9 @@
                 </p>
               </div>
             </NuxtLink>
+          </div>
+          <div v-else class="text-center text-gray-500 dark:text-gray-400">
+            No plans yet. Get started by creating a new plan.
           </div>
         </UCard>
       </div>
@@ -84,7 +87,7 @@
           </h2>
         </div>
         <UCard>
-          <div class="space-y-2 max-h-64 overflow-y-auto">
+          <div v-if="latestChats.length > 0" class="space-y-2 max-h-64 overflow-y-auto">
             <div v-for="chat in latestChats" :key="chat.id" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-x-3">
@@ -99,6 +102,9 @@
               </div>
             </div>
           </div>
+          <div v-else class="text-center text-gray-500 dark:text-gray-400">
+            No chats yet. Start a conversation with the AI.
+          </div>
         </UCard>
       </div>
 
@@ -111,7 +117,7 @@
           </h2>
         </div>
         <UCard>
-          <div class="space-y-2 max-h-64 overflow-y-auto">
+          <div v-if="latestDocuments.length > 0" class="space-y-2 max-h-64 overflow-y-auto">
             <div v-for="doc in latestDocuments" :key="doc.id" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-x-3">
@@ -125,6 +131,9 @@
                 </NuxtLink>
               </div>
             </div>
+          </div>
+          <div v-else class="text-center text-gray-500 dark:text-gray-400">
+            No documents yet. Upload documents to the library.
           </div>
         </UCard>
       </div>

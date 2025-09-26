@@ -1,22 +1,28 @@
 import { ganttData } from "~/constants/ganttData";
 import type { Plan } from "~/types/plan";
 
-const plansData: Plan[] = [
-  {
-    ...ganttData.gantt_plan,
-    id: "1",
-    project_name: "Cultural Agent AI",
-    project_description: "An AI-powered tool for cultural project management.",
-  },
-  {
-    ...ganttData.gantt_plan,
-    id: "2",
-    project_name: "Another Plan",
-    project_description: "A different project plan.",
-  },
-];
+const STORAGE_KEY = "gantt-plans";
 
-const plans = ref<Plan[]>(plansData);
+const initialPlans: Plan[] = [];
+
+if (import.meta.client) {
+  const storedPlans = localStorage.getItem(STORAGE_KEY);
+  if (storedPlans) {
+    initialPlans.push(...JSON.parse(storedPlans));
+  }
+}
+
+const plans = ref<Plan[]>(initialPlans);
+
+if (import.meta.client) {
+  watch(
+    plans,
+    (newPlans) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newPlans));
+    },
+    { deep: true }
+  );
+}
 
 export const usePlans = () => {
   const getPlanById = (id: string) => {
@@ -30,7 +36,7 @@ export const usePlans = () => {
   const createPlan = (projectName: string, projectDescription: string) => {
     const newPlan: Plan = {
       ...ganttData.gantt_plan,
-      id: String(plans.value.length + 1),
+      id: String(new Date().getTime()),
       project_name: projectName,
       project_description: projectDescription,
     };

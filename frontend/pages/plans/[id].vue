@@ -1,13 +1,13 @@
 <template>
   <div class="p-4">
     <div class="mb-4 flex justify-between">
-      <UButton icon="i-heroicons-arrow-left" to="/my-plans" size="xl">
+      <UButton icon="i-heroicons-arrow-left" to="/my-plans" size="lg">
         Back to plans
       </UButton>
       <div class="flex gap-2">
         <UButton
           icon="i-heroicons-sparkles"
-          size="xl"
+          size="lg"
           @click="handleRefine"
         >
           Refine Plan
@@ -15,7 +15,7 @@
         <UButton
           color="red"
           icon="i-heroicons-trash"
-          size="xl"
+          size="lg"
           @click="handleDelete"
         >
           Delete Plan
@@ -26,6 +26,9 @@
       <h1 class="text-3xl font-bold pb-4">
         {{ plan.project_name }}
       </h1>
+      <p class="mb-4 text-lg text-gray-500 dark:text-gray-400">
+        {{ plan.project_description }}
+      </p>
       <ClientOnly>
         <GanttChart :plan="plan" />
       </ClientOnly>

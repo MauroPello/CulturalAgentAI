@@ -22,6 +22,15 @@
           <h2 class="text-xl font-bold mb-2">Analysis Result</h2>
           <pre class="whitespace-pre-wrap">{{ analysisResult }}</pre>
         </div>
+        <div v-else-if="loading" class="mt-8 text-center">
+          <p>Analyzing...</p>
+        </div>
+        <div v-else-if="error" class="mt-8 text-center text-red-500">
+          <p>{{ error }}</p>
+        </div>
+        <div v-else class="mt-8 text-center text-gray-500">
+          <p>The analysis result will be displayed here.</p>
+        </div>
       </UCard>
     </div>
   </UContainer>
