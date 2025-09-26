@@ -1,7 +1,7 @@
 <template>
-  <div class="p-4">
+  <div class="p-4 xl:md-32 lg:px-24 md:px-16 px-8">
     <div class="mb-4 flex justify-between">
-      <UButton icon="i-heroicons-arrow-left" to="/my-plans" size="lg">
+      <UButton icon="i-heroicons-arrow-left" to="/my-plans" size="lg" color="white">
         Back to plans
       </UButton>
       <div class="flex gap-2">
@@ -23,7 +23,7 @@
       </div>
     </div>
     <div v-if="plan">
-      <h1 class="text-3xl font-bold pb-4">
+      <h1 class="text-3xl font-bold pb-4 pt-3">
         {{ plan.project_name }}
       </h1>
       <p class="mb-4 text-lg text-gray-500 dark:text-gray-400">

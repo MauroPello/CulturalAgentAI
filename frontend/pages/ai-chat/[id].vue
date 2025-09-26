@@ -306,11 +306,13 @@ function saveEditedTitle(chatId: number) {
               v-model="newMessage"
               placeholder="Type your message..."
               class="flex-1"
+              size="xl"
               :disabled="isLoading"
               @keyup.enter="sendMessage"
             />
             <UButton
               :label="isLoading ? 'Sending...' : 'Send'"
+              size="xl"
               icon="i-heroicons-paper-airplane"
               :disabled="isLoading || newMessage.trim() === ''"
               @click="sendMessage"
