@@ -14,7 +14,7 @@
         <div class="flex w-full items-center justify-center">
           <label
             for="dropzone-file"
-            class="dark:hover:bg-bray-800 flex h-64 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-600"
+            class="dark:hover:bg-bray-800 flex h- w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-600"
           >
             <div class="flex flex-col items-center justify-center pb-6 pt-5">
               <UIcon name="i-heroicons-cloud-arrow-up" class="mb-4 h-8 w-8" />
@@ -59,79 +59,10 @@
         />
       </UCard>
 
-      <!-- Query Card -->
-      <UCard>
-        <template #header>
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold">Query Documents</h2>
-            <UButton v-if="queryResult" variant="ghost" icon="i-heroicons-x-mark" @click="clearQuery" />
-          </div>
-        </template>
-
-        <div class="space-y-4">
-          <p>Ask a question about the documents you've uploaded. The system will retrieve relevant information.</p>
-          <div class="flex gap-2">
-            <UInput
-              v-model="query"
-              type="text"
-              placeholder="e.g., What was our revenue last quarter?"
-              class="flex-grow"
-              :disabled="isQuerying"
-              @keyup.enter="submitQuery"
-            />
-            <UButton :loading="isQuerying" @click="submitQuery">
-              Ask
-            </UButton>
-          </div>
-
-          <UAlert
-            v-if="queryError"
-            title="Error"
-            :description="queryError"
-            color="red"
-            variant="subtle"
-          />
-        </div>
-      </UCard>
-
       <!-- Results / Document List -->
       <div>
-        <!-- Query Result View -->
-        <div v-if="queryResult" class="space-y-4">
-          <UCard v-if="queryResult.answer">
-            <template #header>
-              <h3 class="font-bold">AI Answer</h3>
-            </template>
-            <div class="prose dark:prose-invert">
-              {{ queryResult.answer }}
-            </div>
-          </UCard>
-
-          <UAlert
-            v-if="queryResult.error"
-            title="LLM Error"
-            :description="queryResult.error"
-            color="red"
-            variant="subtle"
-          />
-
-          <UCard>
-            <template #header>
-              <h3 class="font-bold">Retrieved Chunks (Context)</h3>
-            </template>
-            <div class="prose dark:prose-invert max-w-none">
-              <p v-if="queryResult.retrieved_chunks.length === 0">No relevant chunks found.</p>
-              <ul v-else class="list-disc space-y-2 pl-5">
-                <li v-for="(chunk, index) in queryResult.retrieved_chunks" :key="index" class="bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                  "{{ chunk }}"
-                </li>
-              </ul>
-            </div>
-          </UCard>
-        </div>
-
         <!-- Default Document List View -->
-        <UCard v-else>
+        <UCard>
           <template #header>
             <h2 class="text-xl font-bold">All Documents</h2>
           </template>
@@ -205,13 +136,6 @@ interface Document {
   id: number;
   name: string;
   status: "processing" | "completed";
-}
-
-interface QueryResult {
-  answer?: string;
-  error?: string;
-  retrieved_chunks: string[];
-  prepared_prompt?: string;
 }
 
 // --- Documents List ---
@@ -338,53 +262,6 @@ const deleteDocument = async (documentId: number) => {
     isDeleting.value = false;
   }
 };
-
-// --- Query ---
-const query = ref('');
-const queryResult = ref<QueryResult | null>(null);
-const isQuerying = ref(false);
-const queryError = ref<string | null>(null);
-
-const submitQuery = async () => {
-  if (!query.value.trim()) {
-    queryError.value = 'Please enter a query.';
-    return;
-  }
-
-  isQuerying.value = true;
-  queryResult.value = null;
-  queryError.value = null;
-
-  try {
-    const response = await fetch('http://127.0.0.1:8000/query/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: query.value, n_results: 3 }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'An error occurred while fetching data.');
-    }
-
-    queryResult.value = await response.json();
-  } catch (err) {
-    if (err instanceof Error) {
-      queryError.value = err.message;
-    } else {
-      queryError.value = 'An unknown error occurred.';
-    }
-  } finally {
-    isQuerying.value = false;
-  }
-};
-
-const clearQuery = () => {
-  query.value = '';
-  queryResult.value = null;
-  queryError.value = null;
-};
-
 </script>
 
 <style scoped>

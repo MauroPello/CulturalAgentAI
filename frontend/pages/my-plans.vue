@@ -1,6 +1,6 @@
 <template>
   <div class="p-4">
-    <h1 class="text-2xl font-bold">My Plans</h1>
+    <h1 class="text-2xl font-bold pb-4">My Plans</h1>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       <UCard
         class="flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-100"

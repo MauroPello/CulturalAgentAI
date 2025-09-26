@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { companyLogo, companyUrl } from "~/constants/company";
+import { companyLogo, companyUrl, companyName } from "~/constants/company";
 
 const router = useRouter();
 
 const fullPath = computed(
   () => companyUrl + router.currentRoute.value.fullPath,
 );
+
+const pageTitle = computed(() => {
+  const routeName = router.currentRoute.value.name?.toString() || "";
+  if (routeName === "index" || !routeName) {
+    return companyName;
+  }
+  const title = routeName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+  return `${companyName} - ${title}`;
+});
+
+useHead({
+  title: pageTitle,
+});
 </script>
 
 <template>
