@@ -40,8 +40,6 @@ const fullPath = computed(
     <AppHeader />
     <div class="landing-page-base__main">
       <slot />
-      <MealHistory />
-      <ResumeModal />
     </div>
     <AppFooter />
   </div>
