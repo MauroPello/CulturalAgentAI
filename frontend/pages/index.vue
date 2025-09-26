@@ -134,15 +134,6 @@
             to="/#find-meal"
           />
         </div>
-        <div v-if="isMinimumSm" class="w-full md:px-2 lg:px-6 xl:px-8">
-          <RecipePreview
-            :recipe="recipe"
-            :is-accepted="false"
-            :selected-ingredients="[]"
-            :current-recipe-acceptance-count="0"
-            :hide-likes-and-dislikes="true"
-          />
-        </div>
       </div>
     </UContainer>
 
@@ -155,7 +146,6 @@
         Click the button below to start your journey towards more exciting and
         delicious home-cooked meals. It's free and easy!
       </p>
-      <StartGame />
     </UContainer>
 
     <UContainer class="pb-16 text-center">
@@ -191,51 +181,4 @@
 </template>
 
 <script lang="ts" setup>
-const recipe = {
-  id: "52768",
-  name: "Apple Frangipan Tart",
-  category: "Dessert",
-  area: "English",
-  instructions:
-    "Preheat the oven to 200C/180C Fan/Gas 6.\r\nPut the biscuits in a large re-sealable freezer bag and bash with a rolling pin into fine crumbs. Melt the butter in a small pan, then add the biscuit crumbs and stir until coated with butter. Tip into the tart tin and, using the back of a spoon, press over the base and sides of the tin to give an even layer. Chill in the fridge while you make the filling.\r\nCream together the butter and sugar until light and fluffy. You can do this in a food processor if you have one. Process for 2-3 minutes. Mix in the eggs, then add the Almonds and almond extract and blend until well combined.\r\nPeel the apples, and cut thin slices of apple. Do this at the last minute to prevent the apple going brown. Arrange the slices over the biscuit base. Spread the frangipane filling evenly on top. Level the surface and sprinkle with the flaked almonds.\r\nBake for 20-25 minutes until golden-brown and set.\r\nRemove from the oven and leave to cool for 15 minutes. Remove the sides of the tin. An easy way to do this is to stand the tin on a can of beans and push down gently on the edges of the tin.\r\nTransfer the tart, with the tin base attached, to a serving plate. Serve warm with cream, crème fraiche or ice cream.",
-  tags: ["Tart", "Baking", "Fruity"],
-  youtubeUrl: "https://www.youtube.com/watch?v=rp8Slv4INLk",
-  ingredients: [
-    {
-      ingredient: "Digestive Biscuits",
-      measure: "175g/6oz",
-    },
-    {
-      ingredient: "Butter",
-      measure: "75g/3oz",
-    },
-    {
-      ingredient: "Apples",
-      measure: "200g/7oz",
-    },
-    {
-      ingredient: "Sugar",
-      measure: "75g/3oz",
-    },
-    {
-      ingredient: "Eggs",
-      measure: "2",
-    },
-    {
-      ingredient: "Almonds",
-      measure: "75g/3oz",
-    },
-    {
-      ingredient: "Almond Extract",
-      measure: "1 tsp",
-    },
-    {
-      ingredient: "Flaked Almonds",
-      measure: "50g/1¾oz",
-    },
-  ],
-  slug: "apple-frangipan-tart",
-};
-
-const { isMinimumSm } = useScreenSize();
 </script>
