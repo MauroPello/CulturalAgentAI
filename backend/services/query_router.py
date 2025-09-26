@@ -19,185 +19,295 @@ class QueryRouter:
         self.web_search_service = web_search_service
         self.confidence_threshold = confidence_threshold
         
-        # Keywords for quick pre-analysis
+        # Keywords for quick pre-analysis - more specific patterns
         self.temporal_keywords = [
             'latest', 'current', 'recent', 'today', 'now', 'breaking',
             'updated', 'new', 'fresh', 'live', 'real-time', 'yesterday',
-            'this week', 'this month', 'this year', '2025', '2024'
+            'this week', 'this month', 'this year', '2025', '2024',
+            'just happened', 'happening now', 'trending', 'news'
         ]
         
         self.internal_keywords = [
-            'our', 'my', 'document', 'file', 'report', 'project',
-            'internal', 'company', 'team', 'organization', 'we',
-            'uploaded', 'saved', 'stored'
+            'our company', 'my document', 'our document', 'our file', 'our report', 
+            'my file', 'my report', 'company document', 'internal document',
+            'uploaded file', 'saved document', 'stored file', 'project file',
+            'company data', 'internal data', 'our database', 'our system'
+        ]
+        
+        # Strong temporal patterns (regex)
+        self.temporal_patterns = [
+            r'\b(what\'?s|what is) (new|latest|happening|current)',
+            r'\b(today\'?s|this (week|month|year)\'?s)',
+            r'\b(current|latest|recent) (news|updates|developments)',
+            r'\b(breaking|live|real-time)',
+            r'\b(just (happened|released|announced))',
+        ]
+        
+        # Strong internal patterns (regex)  
+        self.internal_patterns = [
+            r'\b(our|my) (document|file|report|data|system)',
+            r'\b(company|internal|organization) (document|file|data)',
+            r'\b(uploaded|saved|stored) (document|file)',
+            r'\b(find|show|search) (my|our) ',
+            r'\b(in (our|my|the) (database|system|files))',
         ]
     
     async def analyze_query(self, query: str) -> QueryAnalysis:
-        """Sophisticated query analysis using LLM"""
+        """Enhanced query analysis with improved rule-based logic and LLM backup"""
         
-        # Quick keyword analysis for context
-        temporal_found = [kw for kw in self.temporal_keywords if kw.lower() in query.lower()]
-        internal_found = [kw for kw in self.internal_keywords if kw.lower() in query.lower()]
+        # First, try robust rule-based analysis
+        rule_based_analysis = await self._rule_based_analysis(query)
         
-        # Get RAG similarity preview
+        # If confidence is high enough, use rule-based result
+        if rule_based_analysis.confidence >= 7.5:  # Increased threshold
+            return rule_based_analysis
+        
+        # Otherwise, try LLM analysis as enhancement
+        try:
+            llm_analysis = await self._llm_analysis(query, rule_based_analysis)
+            
+            # Validate LLM analysis makes sense
+            if self._validate_analysis(llm_analysis, rule_based_analysis):
+                return llm_analysis
+            else:
+                # LLM analysis doesn't make sense, use rule-based
+                return rule_based_analysis
+                
+        except Exception as e:
+            print(f"LLM analysis failed: {e}")
+            return rule_based_analysis
+
+    async def _rule_based_analysis(self, query: str) -> QueryAnalysis:
+        """Improved rule-based query analysis"""
+        query_lower = query.lower()
+        
+        # Calculate scores using both keywords and patterns
+        temporal_score = self._calculate_temporal_score(query_lower)
+        internal_score = self._calculate_internal_score(query_lower)
+        
+        # Get context from RAG
         rag_similarity = await self.rag_service.quick_search(query) or 0.0
         
-        system_prompt = """You are an expert at analyzing search queries to determine the best information retrieval strategy. You must respond in a specific format that can be parsed programmatically."""
+        # Enhanced decision logic
+        if temporal_score >= 1 and internal_score >= 1:
+            # Mixed signals -> HYBRID (prioritize this check first)
+            return QueryAnalysis(
+                strategy=SearchStrategy.HYBRID,
+                confidence=7.0 + min(temporal_score + internal_score, 3.0) * 0.5,
+                reasoning=f"Mixed indicators: temporal ({temporal_score}) + internal ({internal_score})",
+                key_factors=["mixed_signals", "hybrid_needed"],
+                temporal_indicators=self._get_temporal_matches(query_lower),
+                internal_references=self._get_internal_matches(query_lower)
+            )
+        elif temporal_score >= 2 and internal_score <= 0:
+            # Strong temporal signals, no internal signals -> WEB
+            return QueryAnalysis(
+                strategy=SearchStrategy.WEB,
+                confidence=8.0 + min(temporal_score * 0.5, 2.0),
+                reasoning=f"Strong temporal indicators detected (score: {temporal_score})",
+                key_factors=["high_temporal_score", "no_internal_signals"],
+                temporal_indicators=self._get_temporal_matches(query_lower),
+                internal_references=self._get_internal_matches(query_lower)
+            )
+        elif internal_score >= 2 and temporal_score <= 0:
+            # Strong internal signals, no temporal signals -> RAG
+            confidence = 8.0 + min(internal_score * 0.5, 2.0)
+            if rag_similarity > 0.3:  # Boost confidence if RAG has relevant content
+                confidence += 1.0
+                
+            return QueryAnalysis(
+                strategy=SearchStrategy.RAG,
+                confidence=confidence,
+                reasoning=f"Strong internal document indicators detected (score: {internal_score})",
+                key_factors=["high_internal_score", "no_temporal_signals"],
+                temporal_indicators=self._get_temporal_matches(query_lower),
+                internal_references=self._get_internal_matches(query_lower)
+            )
+        elif self._is_factual_question(query_lower):
+            # Simple factual questions -> DIRECT
+            return QueryAnalysis(
+                strategy=SearchStrategy.DIRECT,
+                confidence=8.0,
+                reasoning="Simple factual question that can be answered directly",
+                key_factors=["factual_question", "no_external_data_needed"],
+                temporal_indicators=self._get_temporal_matches(query_lower),
+                internal_references=self._get_internal_matches(query_lower)
+            )
+        else:
+            # Ambiguous -> Try RAG first if there's similarity, otherwise DIRECT
+            if rag_similarity > 0.2:
+                return QueryAnalysis(
+                    strategy=SearchStrategy.RAG,
+                    confidence=6.0,
+                    backup_strategy=SearchStrategy.DIRECT,
+                    reasoning="Ambiguous query but RAG has some relevant content",
+                    key_factors=["ambiguous", "rag_similarity"],
+                    temporal_indicators=self._get_temporal_matches(query_lower),
+                    internal_references=self._get_internal_matches(query_lower)
+                )
+            else:
+                return QueryAnalysis(
+                    strategy=SearchStrategy.DIRECT,
+                    confidence=6.0,
+                    backup_strategy=SearchStrategy.WEB,
+                    reasoning="Ambiguous query with no clear indicators",
+                    key_factors=["ambiguous", "default_choice"],
+                    temporal_indicators=self._get_temporal_matches(query_lower),
+                    internal_references=self._get_internal_matches(query_lower)
+                )
+
+    def _calculate_temporal_score(self, query_lower: str) -> float:
+        """Calculate temporal relevance score"""
+        score = 0.0
+        
+        # Check keywords
+        for keyword in self.temporal_keywords:
+            if keyword.lower() in query_lower:
+                score += 1.0
+        
+        # Check patterns (stronger signal)
+        for pattern in self.temporal_patterns:
+            if re.search(pattern, query_lower):
+                score += 2.0
+        
+        return score
+    
+    def _calculate_internal_score(self, query_lower: str) -> float:
+        """Calculate internal document relevance score"""
+        score = 0.0
+        
+        # Check keywords  
+        for keyword in self.internal_keywords:
+            if keyword.lower() in query_lower:
+                score += 1.0
+        
+        # Check patterns (stronger signal)
+        for pattern in self.internal_patterns:
+            if re.search(pattern, query_lower):
+                score += 2.0
+        
+        return score
+    
+    def _get_temporal_matches(self, query_lower: str) -> List[str]:
+        """Get temporal keywords/patterns that matched"""
+        matches = []
+        for keyword in self.temporal_keywords:
+            if keyword.lower() in query_lower:
+                matches.append(keyword)
+        return matches
+    
+    def _get_internal_matches(self, query_lower: str) -> List[str]:
+        """Get internal keywords/patterns that matched"""
+        matches = []
+        for keyword in self.internal_keywords:
+            if keyword.lower() in query_lower:
+                matches.append(keyword)
+        return matches
+    
+    def _is_factual_question(self, query_lower: str) -> bool:
+        """Detect simple factual questions"""
+        factual_patterns = [
+            r'\bwhat is\b',
+            r'\bwho is\b', 
+            r'\bwhen was\b',
+            r'\bwhere is\b',
+            r'\bhow to\b',
+            r'\bdefine\b',
+            r'\bexplain\b',
+            r'\bcapital of\b',
+            r'\bpopulation of\b',
+            r'\bhistory of\b'
+        ]
+        
+        return any(re.search(pattern, query_lower) for pattern in factual_patterns)
+    
+    async def _llm_analysis(self, query: str, rule_based: QueryAnalysis) -> QueryAnalysis:
+        """LLM-enhanced analysis with better prompt and validation"""
+        
+        system_prompt = """You are an expert query analyzer. Respond in the EXACT format requested."""
         
         analysis_prompt = f"""
-        Analyze this query to determine the best information retrieval strategy:
+        Analyze this query for the best search strategy. Base your analysis on the patterns you see.
         
         Query: "{query}"
         
-        Context Information:
-        - Temporal keywords found: {temporal_found}
-        - Internal reference keywords found: {internal_found}  
-        - RAG similarity preview: {rag_similarity:.2f}
+        Rule-based analysis suggests: {rule_based.strategy} (confidence: {rule_based.confidence:.1f})
+        Reasoning: {rule_based.reasoning}
         
-        Evaluation Framework:
+        Choose the BEST strategy:
+        - RAG: For questions about internal documents, company data, uploaded files
+        - WEB: For current events, latest news, real-time information  
+        - DIRECT: For general knowledge, definitions, simple facts
+        - HYBRID: When both internal and current information needed
         
-        1. Information Type Analysis:
-           - Is this asking for current/time-sensitive information?
-           - Does it reference internal documents or company-specific data?
-           - Is it a general knowledge question?
-           - Does it require combining multiple information sources?
-        
-        2. Source Requirements:
-           - TEMPORAL INDICATORS → Favor WEB search
-           - INTERNAL REFERENCES → Favor RAG search  
-           - GENERAL KNOWLEDGE → Use DIRECT response
-           - COMPLEX/COMPARATIVE → Consider HYBRID approach
-        
-        3. Decision Tree:
-           Step 1: Check for strong temporal signals (current, latest, today, breaking, etc.)
-           → If YES and no internal references: WEB (confidence 8-9)
-           
-           Step 2: Check for internal document references (our, my, document, etc.)  
-           → If YES and no temporal signals: RAG (confidence 8-9)
-           
-           Step 3: Check if it's answerable from general training knowledge
-           → If YES and simple factual: DIRECT (confidence 7-8)
-           
-           Step 4: Check if it needs both current and internal information
-           → If YES: HYBRID (confidence 6-7)
-           
-           Step 5: Default based on strongest signal
-        
-        4. Confidence Factors:
-           - High (8-10): Clear single source needed, strong keyword signals
-           - Medium (5-7): Multiple possible sources, moderate signals  
-           - Low (1-4): Ambiguous query, weak signals
-        
-        Provide your analysis in this EXACT format:
-        
-        PRIMARY_STRATEGY: [RAG|WEB|DIRECT|HYBRID]
+        Respond in this EXACT format:
+        STRATEGY: [RAG|WEB|DIRECT|HYBRID]
         CONFIDENCE: [1-10]
-        BACKUP_STRATEGY: [RAG|WEB|DIRECT|HYBRID or NONE]
-        REASONING: [2-3 sentences explaining the decision]
-        KEY_FACTORS: [factor1, factor2, factor3]
-        TEMPORAL_INDICATORS: [{temporal_found}]
-        INTERNAL_REFERENCES: [{internal_found}]
+        REASONING: [One clear sentence why this strategy is best]
         """
         
-        try:
-            response = await self.llm_service.generate(
-                analysis_prompt,
-                max_tokens=300,
-                temperature=0.1,
-                system_prompt=system_prompt
-            )
-            
-            return self._parse_analysis(response.get('text', ''), temporal_found, internal_found)
+        response = await self.llm_service.generate(
+            analysis_prompt,
+            max_tokens=200,
+            temperature=0.1,
+            system_prompt=system_prompt
+        )
         
-        except Exception as e:
-            print(f"LLM analysis failed: {e}")
-            # Fallback to rule-based analysis
-            return self._fallback_analysis(query, temporal_found, internal_found, rag_similarity)
+        return self._parse_llm_response(response.get('text', ''), rule_based)
     
-    def _parse_analysis(self, response_text: str, temporal_found: List[str], internal_found: List[str]) -> QueryAnalysis:
-        """Parse LLM analysis response"""
+    def _parse_llm_response(self, response_text: str, rule_based: QueryAnalysis) -> QueryAnalysis:
+        """Parse LLM response with better error handling"""
         try:
-            # Extract information using regex
-            strategy_match = re.search(r'PRIMARY_STRATEGY:\s*(\w+)', response_text)
+            strategy_match = re.search(r'STRATEGY:\s*(\w+)', response_text)
             confidence_match = re.search(r'CONFIDENCE:\s*(\d+)', response_text)
-            backup_match = re.search(r'BACKUP_STRATEGY:\s*(\w+)', response_text)
-            reasoning_match = re.search(r'REASONING:\s*([^\n]+(?:\n[^\n]+)*?)(?=KEY_FACTORS|$)', response_text)
-            factors_match = re.search(r'KEY_FACTORS:\s*\[(.*?)\]', response_text)
+            reasoning_match = re.search(r'REASONING:\s*([^\n]+)', response_text)
             
-            strategy = SearchStrategy(strategy_match.group(1)) if strategy_match else SearchStrategy.DIRECT
-            confidence = float(confidence_match.group(1)) if confidence_match else 5.0
-            backup = SearchStrategy(backup_match.group(1)) if backup_match and backup_match.group(1) != 'NONE' else None
-            reasoning = reasoning_match.group(1).strip() if reasoning_match else "Analysis based on keyword patterns"
+            if not all([strategy_match, confidence_match]):
+                return rule_based
             
-            key_factors = []
-            if factors_match:
-                factors_text = factors_match.group(1)
-                key_factors = [f.strip().strip('"\'') for f in factors_text.split(',')]
+            strategy_str = strategy_match.group(1)
+            if strategy_str not in ['RAG', 'WEB', 'DIRECT', 'HYBRID']:
+                return rule_based
+            
+            strategy = SearchStrategy(strategy_str)
+            confidence = float(confidence_match.group(1))
+            reasoning = reasoning_match.group(1).strip() if reasoning_match else "LLM analysis"
             
             return QueryAnalysis(
                 strategy=strategy,
-                confidence=confidence,
-                backup_strategy=backup,
+                confidence=min(confidence, 10.0),
                 reasoning=reasoning,
-                key_factors=key_factors,
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
+                key_factors=["llm_analysis"] + rule_based.key_factors,
+                temporal_indicators=rule_based.temporal_indicators,
+                internal_references=rule_based.internal_references
             )
         
         except Exception as e:
-            print(f"Failed to parse analysis: {e}")
-            # If parsing fails, return safe defaults
-            return QueryAnalysis(
-                strategy=SearchStrategy.HYBRID,
-                confidence=5.0,
-                reasoning="Failed to parse analysis, using safe default",
-                key_factors=["parsing_error"],
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
-            )
+            print(f"Failed to parse LLM response: {e}")
+            return rule_based
     
-    def _fallback_analysis(self, query: str, temporal_found: List[str], internal_found: List[str], rag_similarity: float) -> QueryAnalysis:
-        """Rule-based fallback analysis"""
+    def _validate_analysis(self, llm_analysis: QueryAnalysis, rule_based: QueryAnalysis) -> bool:
+        """Validate that LLM analysis makes sense compared to rule-based"""
         
-        temporal_score = len(temporal_found)
-        internal_score = len(internal_found)
+        # If rule-based confidence is very high and strategies differ significantly, be suspicious
+        if rule_based.confidence >= 8.5 and llm_analysis.strategy != rule_based.strategy:
+            # Check if the difference makes sense
+            if rule_based.strategy == SearchStrategy.WEB and llm_analysis.strategy == SearchStrategy.DIRECT:
+                # Suspicious: rule-based found strong temporal signals but LLM suggests DIRECT
+                return False
+            elif rule_based.strategy == SearchStrategy.RAG and llm_analysis.strategy == SearchStrategy.DIRECT:
+                # Suspicious: rule-based found strong internal signals but LLM suggests DIRECT  
+                return False
         
-        if temporal_score > 0 and internal_score == 0:
-            return QueryAnalysis(
-                strategy=SearchStrategy.WEB,
-                confidence=8.0,
-                reasoning="Strong temporal indicators suggest web search needed",
-                key_factors=["temporal_keywords", "no_internal_references"],
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
-            )
-        elif internal_score > 0 and temporal_score == 0:
-            return QueryAnalysis(
-                strategy=SearchStrategy.RAG,
-                confidence=8.0,
-                reasoning="Internal references suggest RAG search needed",
-                key_factors=["internal_references", "no_temporal_indicators"],
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
-            )
-        elif temporal_score > 0 and internal_score > 0:
-            return QueryAnalysis(
-                strategy=SearchStrategy.HYBRID,
-                confidence=7.0,
-                reasoning="Both temporal and internal indicators present",
-                key_factors=["temporal_keywords", "internal_references"],
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
-            )
-        else:
-            return QueryAnalysis(
-                strategy=SearchStrategy.DIRECT,
-                confidence=6.0,
-                reasoning="No strong indicators, using direct response",
-                key_factors=["no_clear_signals"],
-                temporal_indicators=temporal_found,
-                internal_references=internal_found
-            )
+        # LLM confidence should be reasonable
+        if llm_analysis.confidence > 10.0 or llm_analysis.confidence < 1.0:
+            return False
+        
+        return True
+    
+    async def _fallback_analysis(self, query: str, temporal_found: List[str], internal_found: List[str], rag_similarity: float) -> QueryAnalysis:
+        """Legacy fallback - now just calls the new rule-based analysis"""
+        return await self._rule_based_analysis(query)
     
     async def execute_search(self, query: str, analysis: QueryAnalysis) -> Tuple[List[SearchResult], SearchStrategy]:
         """Execute the search strategy"""
