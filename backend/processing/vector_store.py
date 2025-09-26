@@ -32,3 +32,15 @@ def add_documents_to_store(chunks: List[str], embeddings: List[List[float]], met
 def get_document_count() -> int:
     """Returns the total number of documents in the collection."""
     return collection.count()
+
+def query_store(query_embedding: List[float], n_results: int = 5) -> Dict:
+    """
+    Queries the ChromaDB collection for the most similar documents.
+    
+    Returns a dictionary containing the retrieved documents, metadata, and distances.
+    """
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=n_results
+    )
+    return results

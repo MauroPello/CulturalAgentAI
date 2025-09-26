@@ -5,11 +5,12 @@ from pathlib import Path
 from typing import List, Dict
 import uuid
 import pandas as pd
+from pydantic import BaseModel
 
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
-from processing.vector_store import add_documents_to_store, get_document_count
+from processing.vector_store import add_documents_to_store, get_document_count, query_store
 
 app = FastAPI()
 
@@ -139,6 +140,88 @@ async def process_document_endpoint(file: UploadFile = File(...)):
             print(f"🧹 Temporary file cleaned up: {file_path}")
         else:
             print(f"⚠️ Temporary file not found for cleanup: {file_path}")
+
+# 1. Define a request model for the query
+class QueryRequest(BaseModel):
+    query: str
+    n_results: int = 5
+
+# 2. Create the new query endpoint
+@app.post("/query/")
+async def query_index(request: QueryRequest):
+    """
+    Accepts a text query, embeds it, and retrieves the most relevant chunks from the vector store.
+    """
+    if not request.query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    try:
+        # Embed the user's query using the same embedder
+        # embed_chunks expects a list, so we wrap the query and get the first result
+        query_embedding = embed_chunks([request.query])[0]
+
+        # Query the vector store
+        results = query_store(
+            query_embedding=query_embedding,
+            n_results=request.n_results
+        )
+
+        # 1. Prepare the context from retrieved documents
+        context_chunks = []
+        if results and results.get('documents') and results['documents'][0]:
+            context_chunks = results['documents'][0]
+        
+        context_string = "\n\n---\n\n".join(context_chunks)
+
+        prompt_template = """
+        You are a helpful assistant for the company. Use the following context to answer the question.
+        If the answer is not found in the context, state that you don't have enough information.
+
+        CONTEXT:
+        {context}
+
+        QUESTION:
+        {question}
+
+        ANSWER:
+        """
+
+        # 3. Format the final prompt
+        final_prompt = prompt_template.format(
+            context=context_string,
+            question=request.query
+        )
+
+        # Format the results for a clean API response
+        response_data = {
+            "query": request.query,
+            "results": []
+        }
+
+        # For now, we return the prepared prompt. The final step would be to send this to an LLM.
+        return JSONResponse(status_code=200, content={
+            "query": request.query,
+            "prepared_prompt": final_prompt,
+            "retrieved_chunks": context_chunks # Also return the chunks for inspection
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred during query: {str(e)}")
+        
+    #     # The result from ChromaDB is a dictionary with lists of lists.
+    #     # We access the first list since we only sent one query.
+    #     if results and results.get('documents') and results['documents'][0]:
+    #         for i, doc_text in enumerate(results['documents'][0]):
+    #             response_data["results"].append({
+    #                 "text": doc_text,
+    #                 "metadata": results['metadatas'][0][i],
+    #                 "distance": results['distances'][0][i]
+    #             })
+        
+    #     return JSONResponse(status_code=200, content=response_data)
+
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"An error occurred during query: {str(e)}")
 
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
