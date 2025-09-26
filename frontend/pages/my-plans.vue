@@ -55,11 +55,12 @@
               <UButton
                 color="gray"
                 variant="ghost"
+                size="xl"
                 @click="isDeleteModalOpen = false"
               >
                 Cancel
               </UButton>
-              <UButton color="red" @click="confirmDeletePlan"> Delete </UButton>
+              <UButton color="red" size="xl" @click="confirmDeletePlan"> Delete </UButton>
             </div>
           </template>
         </UCard>

@@ -12,6 +12,17 @@ export default defineAppConfig({
     },
     modal: {
       container: 'flex min-h-full items-center justify-center text-center p-4',
+      base: 'text-lg',
+      padding: 'p-6 sm:p-8',
+      header: {
+        padding: 'py-6 px-6 sm:px-8',
+      },
+      body: {
+        padding: 'py-6 px-6 sm:px-8',
+      },
+      footer: {
+        padding: 'py-6 px-6 sm:px-8',
+      }
     },
     card: {
       body: {

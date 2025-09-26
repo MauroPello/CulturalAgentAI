@@ -142,11 +142,12 @@
               <UButton
                 color="gray"
                 variant="ghost"
+                size="xl"
                 @click="isDeleteModalOpen = false"
               >
                 Cancel
               </UButton>
-              <UButton color="red" :loading="isDeleting" @click="confirmDelete">
+              <UButton color="red" size="xl" :loading="isDeleting" @click="confirmDelete">
                 Delete
               </UButton>
             </div>

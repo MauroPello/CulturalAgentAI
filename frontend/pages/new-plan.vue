@@ -164,10 +164,10 @@ function confirmBuildPlan() {
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="gray" variant="ghost" @click="isModalOpen = false"
+              <UButton color="gray" variant="ghost" size="xl" @click="isModalOpen = false"
                 >Cancel</UButton
               >
-              <UButton @click="confirmBuildPlan">Create Plan</UButton>
+              <UButton size="xl" @click="confirmBuildPlan">Create Plan</UButton>
             </div>
           </template>
         </UCard>
