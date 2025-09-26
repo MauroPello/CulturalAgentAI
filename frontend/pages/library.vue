@@ -170,6 +170,30 @@
         </UCard>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <UModal v-model="isDeleteModalOpen">
+      <UCard>
+        <template #header>
+          <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+            Confirm Deletion
+          </h3>
+        </template>
+
+        <p>Are you sure you want to delete "{{ documentToDelete?.name }}"?</p>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" variant="ghost" @click="isDeleteModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton color="red" :loading="isDeleting" @click="confirmDelete">
+              Delete
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
@@ -274,11 +298,19 @@ const uploadFile = async () => {
 // --- Delete ---
 const isDeleting = ref(false);
 const deleteError = ref<string | null>(null);
+const isDeleteModalOpen = ref(false);
+const documentToDelete = ref<Document | null>(null);
 
-const handleDelete = async (document: Document) => {
-  if (confirm(`Are you sure you want to delete "${document.name}"?`)) {
-    await deleteDocument(document.id);
+const handleDelete = (document: Document) => {
+  documentToDelete.value = document;
+  isDeleteModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+  if (documentToDelete.value) {
+    await deleteDocument(documentToDelete.value.id);
   }
+  isDeleteModalOpen.value = false;
 };
 
 const deleteDocument = async (documentId: number) => {

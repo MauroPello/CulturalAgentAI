@@ -37,6 +37,28 @@
         <p>{{ plan.project_description }}</p>
       </UCard>
     </div>
+    <UModal v-model="isDeleteModalOpen">
+      <UCard>
+        <template #header>
+          <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+            Confirm Deletion
+          </h3>
+        </template>
+
+        <p>Are you sure you want to delete this plan?</p>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" variant="ghost" @click="isDeleteModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton color="red" @click="confirmDeletePlan">
+              Delete
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
@@ -46,6 +68,8 @@ import { usePlans } from "~/composables/usePlans";
 const { plans, deletePlan } = usePlans();
 
 const router = useRouter();
+const isDeleteModalOpen = ref(false);
+const planToDeleteId = ref<string | null>(null);
 
 const startNewPlanChat = () => {
   router.push("/new-plan");
@@ -56,8 +80,14 @@ const goToPlan = (planId: string) => {
 };
 
 const handleDeletePlan = (planId: string) => {
-  if (confirm("Are you sure you want to delete this plan?")) {
-    deletePlan(planId);
+  planToDeleteId.value = planId;
+  isDeleteModalOpen.value = true;
+};
+
+const confirmDeletePlan = () => {
+  if (planToDeleteId.value) {
+    deletePlan(planToDeleteId.value);
   }
+  isDeleteModalOpen.value = false;
 };
 </script>
