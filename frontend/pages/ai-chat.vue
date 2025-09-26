@@ -1,13 +1,37 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { Message } from '~/types/chat'
 
-const messages = ref<Message[]>([
-  { id: 1, text: 'Hello! I am an AI expert in international business and consulting. How can I help you today?', isUser: false },
-  { id: 2, text: 'I want to know more about expanding my business into the Asian market.', isUser: true },
-  { id: 3, text: 'That\'s a great goal! The Asian market is diverse and offers many opportunities. To give you the best advice, could you tell me a bit more about your business and which countries you are considering?', isUser: false },
+const newMessage = ref('')
+const messages = ref<Message[]>([])
+
+const previousChats = ref([
+  {
+    id: 1,
+    title: 'Asian Market Strategy',
+    messages: [
+      { id: 1, text: 'Hello! I am an AI expert in international business and consulting. How can I help you today?', isUser: false },
+      { id: 2, text: 'I want to know more about expanding my business into the Asian market.', isUser: true },
+      { id: 3, text: 'That\'s a great goal! The Asian market is diverse and offers many opportunities. To give you the best advice, could you tell me a bit more about your business and which countries you are considering?', isUser: false },
+    ],
+  },
 ])
 
-const newMessage = ref('')
+let chatCounter = 2
+
+function createNewChat() {
+  const newChat = {
+    id: chatCounter++,
+    title: `New Chat ${chatCounter}`,
+    messages: [],
+  }
+  previousChats.value.push(newChat)
+  messages.value = newChat.messages
+}
+
+function loadChat(chat) {
+  messages.value = chat.messages
+}
 
 function sendMessage() {
   if (newMessage.value.trim() === '') return
@@ -18,7 +42,6 @@ function sendMessage() {
     isUser: true,
   })
 
-  // Simulate a response from the LLM
   setTimeout(() => {
     messages.value.push({
       id: messages.value.length + 1,
@@ -32,42 +55,86 @@ function sendMessage() {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen">
-    <AppHeader />
-    <main class="flex-1 overflow-y-auto p-4">
-      <UCard class="h-full">
-        <div class="flex flex-col h-full">
-          <div class="flex-1 space-y-4 overflow-y-auto">
-            <div
-              v-for="message in messages"
-              :key="message.id"
-              class="flex"
-              :class="{ 'justify-end': message.isUser }"
-            >
+  <div class="flex h-screen items-center justify-center bg-gray-50 p-4">
+    <!-- Outer container -->
+    <UCard class="h-full w-full max-w-6xl rounded-lg overflow-hidden">
+      <div class="flex h-full w-full">
+
+
+        <aside class="w-1/3 bg-gray-100 border-r p-4 overflow-y-auto">
+  <h2 class="text-lg font-semibold mb-4">Previous Chats</h2>
+
+  <!-- New Chat Button -->
+  <button
+    @click="createNewChat"
+    class="mb-4 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
+  >
+    + New Chat
+  </button>
+
+  <!-- Editable Chat List -->
+  <ul class="space-y-2">
+    <li
+      v-for="chat in previousChats"
+      :key="chat.id"
+      class="flex items-center gap-2"
+    >
+      <input
+        v-model="chat.title"
+        class="flex-1 p-2 rounded border bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
+      <button
+        @click="loadChat(chat)"
+        class="px-3 py-2 bg-gray-300 rounded hover:bg-gray-400"
+      >
+        Open
+      </button>
+    </li>
+  </ul>
+</aside>
+
+
+        <!-- 💬 Chat area (2/3) -->
+        <div class="w-2/3 flex flex-col">
+          <UCard class="flex flex-col h-full rounded-none shadow-none">
+
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
               <div
-                class="p-2 rounded-lg max-w-xs"
-                :class="{
-                  'bg-primary text-white': message.isUser,
-                  'bg-gray-200 dark:bg-gray-700': !message.isUser,
-                }"
+                v-for="message in messages"
+                :key="message.id"
+                class="flex w-full"
+                :class="message.isUser ? 'justify-end' : 'justify-start'"
               >
-                {{ message.text }}
+                <div
+                  class="p-3 rounded-lg max-w-xs break-words"
+                  :class="message.isUser ? 'bg-blue-600 text-white' : 'bg-gray-200 text-black'"
+                >
+                  {{ message.text }}
+                </div>
               </div>
             </div>
-          </div>
-          <div class="mt-4 flex items-center">
-            <UInput
+
+            <!-- Input bar -->
+            <div class="border-t p-4 flex gap-2">
+            <input
               v-model="newMessage"
-              class="flex-1"
-              placeholder="Type a message..."
-              @keyup.enter="sendMessage"
+              type="text"
+              placeholder="Type your message..."
+              class="flex-1 p-3 border rounded-lg focus:outline-none"
             />
-            <UButton class="ml-2" @click="sendMessage">
+            <button
+              @click="sendMessage"
+              class="p-3 bg-blue-600 text-white rounded-lg w-32"
+            >
               Send
-            </UButton>
+            </button>
           </div>
+
+
+          </UCard>
         </div>
-      </UCard>
-    </main>
+      </div>
+    </UCard>
   </div>
 </template>
