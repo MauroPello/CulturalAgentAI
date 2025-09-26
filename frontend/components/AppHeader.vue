@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { companyName } from "~/constants/company";
 
-const { isMinimumSm, width } = useScreenSize();
+const { isMinimumSm } = useScreenSize();
+const route = useRoute();
 </script>
 
 <template>
   <div class="landing-page-navigator__container">
     <div
       class="flex flex-row items-center justify-center text-white bg-primary-500 w-full py-0.5 cursor-pointer text-center"
-      @click="async () => await navigateTo('/#find-meal')"
+      @click="async () => await navigateTo('/chat')"
     >
       <div class="overflow-hidden w-full">
         <div class="marquee-wrapper">
@@ -17,7 +18,7 @@ const { isMinimumSm, width } = useScreenSize();
             :key="i"
             class="marquee-text"
           >
-            {{ companyName }} is free! Try it out now! 🚀
+            Expand your business globally with AI! 🚀
           </span>
         </div>
       </div>
@@ -33,63 +34,66 @@ const { isMinimumSm, width } = useScreenSize();
           />
           <p>{{ companyName }}</p>
         </NuxtLink>
-        <UButton
-          size="sm"
-          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-          variant="ghost"
-          to="/upload"
-        >
-          Upload
-        </UButton>
-        <UButton
-          size="sm"
-          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-          variant="ghost"
-          to="/library"
-        >
-          Library
-        </UButton>
-        <UButton
-          size="sm"
-          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-          variant="ghost"
-          to="/chat-review"
-        >
-          Review Chat
-        </UButton>
-        <UButton
-          size="sm"
-          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-          variant="ghost"
-          to="/chat"
-        >
-          Chat
-        </UButton>
-        <UButton
-          size="sm"
-          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-          variant="ghost"
-          to="/gantt"
-        >
-          Gantt
-        </UButton>
+        <template v-if="route.path !== '/'">
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/upload"
+          >
+            Upload
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/library"
+          >
+            Library
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/chat-review"
+          >
+            Review Plans
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/chat"
+          >
+            Chat
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/gantt"
+          >
+            Gantt
+          </UButton>
+        </template>
       </div>
       <ClientOnly>
         <div class="landing-page-navigator__group !gap-0">
           <UButton
-            icon="i-heroicons-clock"
             color="gray"
             variant="link"
-            aria-label="History"
+            aria-label="Ask AI"
             trailing
-            class="!gap-x-1"
-            :label="width > 450 ? 'History' : ''"
-            :size="isMinimumSm ? 'lg' : 'sm'"
+            class="!gap-x-1 text-base"
+            label="Ask AI"
+            :size="isMinimumSm ? 'lg' : 'md'"
+            to="/user-welcome"
           />
           <UButton
-            :label="isMinimumSm ? 'Find a Meal' : 'Try it!'"
+            :label="isMinimumSm ? 'Start Planning' : 'Start'"
             :size="isMinimumSm ? 'lg' : 'md'"
-            class="sm:text-lg"
+            class="text-base"
+            to="/user-welcome"
           />
         </div>
       </ClientOnly>
