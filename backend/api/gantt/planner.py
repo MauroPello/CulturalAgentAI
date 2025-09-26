@@ -1,13 +1,13 @@
 """
 SwissAI Gantt Planner Core Functionality
 
-This module handles the interaction with the Swiss-AI Apertus model
+This module handles the interaction with the Swiss AI Platform Apertus-70B model
 to generate structured Gantt project plans from business descriptions.
 """
 
 import json
 import os
-import requests
+import openai
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -15,19 +15,21 @@ load_dotenv()
 
 
 class SwissAIGanttPlanner:
-    """SwissAI Gantt Planner using Apertus-8B-Instruct model via Public AI API."""
+    """SwissAI Gantt Planner using Apertus-70B model via Swiss AI Platform."""
     
     def __init__(self, api_key: Optional[str] = None):
-        """Initialize the planner with Public AI API settings."""
+        """Initialize the planner with Swiss AI Platform API settings."""
         if api_key is None:
-            api_key = os.getenv("PUBLIC_AI_API_KEY")
+            api_key = os.getenv("SWISS_AI_PLATFORM_API_KEY")
         
         if not api_key:
-            raise ValueError("PUBLIC_AI_API_KEY environment variable is required or provide api_key parameter")
+            raise ValueError("SWISS_AI_PLATFORM_API_KEY environment variable is required or provide api_key parameter")
         
-        self.api_key = api_key
-        self.api_url = "https://api.publicai.co/v1/chat/completions"
-        self.model = "swiss-ai/apertus-8b-instruct"
+        self.client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.swisscom.com/layer/swiss-ai-weeks/apertus-70b/v1"
+        )
+        self.model = "swiss-ai/Apertus-70B"
     
     def generate_gantt_plan(self, description: str, project_name: Optional[str] = None) -> dict:
         """Generate a Gantt plan from a business description."""
@@ -94,32 +96,20 @@ Return ONLY valid JSON matching this exact schema with all required fields. Use 
 
         print(f"Making API call to {self.model}...")
         try:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": "CulturalAgentAI-Gantt/1.0"
-            }
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=4000
+            )
             
-            payload = {
-                "model": self.model,
-                "messages": messages,
-                "temperature": 0.0,
-                "max_tokens": 4000
-            }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload)
-            response.raise_for_status()
-            
-            resp_data = response.json()
             print("API call successful!")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"API request failed: {e}")
         except Exception as e:
             raise Exception(f"API call failed: {e}")
 
         # Parse response
         try:
-            json_text = resp_data["choices"][0]["message"]["content"]
+            json_text = response.choices[0].message.content
             
             # Clean up the response - remove markdown code blocks if present
             if json_text.startswith('```json'):
@@ -135,7 +125,7 @@ Return ONLY valid JSON matching this exact schema with all required fields. Use 
             
         except json.JSONDecodeError as e:
             raise Exception(f"JSON parsing failed: {e}")
-        except KeyError as e:
+        except AttributeError as e:
             raise Exception(f"Unexpected API response format: {e}")
         except Exception as e:
             raise Exception(f"Response processing failed: {e}")

@@ -58,8 +58,8 @@ async def root():
             "/docs": "Interactive API documentation",
             "/redoc": "ReDoc documentation"
         },
-        "model": "swiss-ai/apertus-8b-instruct",
-        "provider": "publicai.co"
+        "model": "swiss-ai/Apertus-70B",
+        "provider": "Swiss AI Platform"
     }
 
 
@@ -76,8 +76,8 @@ async def health_check():
     return {
         "status": "healthy" if config_status == "healthy" else "degraded",
         "service": "SwissAI Gantt Planner",
-        "model": "swiss-ai/apertus-8b-instruct",
-        "api_provider": "publicai.co",
+        "model": "swiss-ai/Apertus-70B",
+        "api_provider": "Swiss AI Platform",
         "configuration": config_status,
         "timestamp": datetime.now().isoformat()
     }
@@ -152,7 +152,7 @@ async def ping():
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting SwissAI Gantt Planner API...")
-    print("📊 Model: swiss-ai/apertus-8b-instruct")
+    print("📊 Model: swiss-ai/Apertus-70B")
     print("🌐 Server will be available at: http://localhost:8001")
     print("📖 API Documentation: http://localhost:8001/docs")
     print("❤️  Health Check: http://localhost:8001/health")

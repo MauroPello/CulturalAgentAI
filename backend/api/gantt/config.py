@@ -19,10 +19,10 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "info")
     
-    # Public AI Configuration
-    PUBLIC_AI_API_KEY: Optional[str] = os.getenv("PUBLIC_AI_API_KEY")
-    PUBLIC_AI_API_URL: str = os.getenv("PUBLIC_AI_API_URL", "https://api.publicai.co/v1/chat/completions")
-    PUBLIC_AI_MODEL: str = os.getenv("PUBLIC_AI_MODEL", "swiss-ai/apertus-8b-instruct")
+    # Swiss AI Platform Configuration
+    SWISS_AI_PLATFORM_API_KEY: Optional[str] = os.getenv("SWISS_AI_PLATFORM_API_KEY")
+    SWISS_AI_PLATFORM_API_URL: str = os.getenv("SWISS_AI_PLATFORM_API_URL", "https://api.swisscom.com/layer/swiss-ai-weeks/apertus-70b/v1")
+    SWISS_AI_MODEL: str = os.getenv("SWISS_AI_MODEL", "swiss-ai/Apertus-70B")
     
     # API Configuration
     API_TITLE: str = "SwissAI Gantt Planner API"
@@ -37,8 +37,8 @@ class Settings:
     @classmethod
     def validate(cls):
         """Validate required settings."""
-        if not cls.PUBLIC_AI_API_KEY:
-            raise ValueError("PUBLIC_AI_API_KEY is required")
+        if not cls.SWISS_AI_PLATFORM_API_KEY:
+            raise ValueError("SWISS_AI_PLATFORM_API_KEY is required")
 
 
 # Global settings instance
