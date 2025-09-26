@@ -49,10 +49,10 @@
 
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton color="gray" @click="isModalOpen = false">
+            <UButton color="gray" size="xl" @click="isModalOpen = false">
               Cancel
             </UButton>
-            <UButton color="red" @click="confirmDelete">
+            <UButton color="red" size="xl" @click="confirmDelete">
               Delete
             </UButton>
           </div>

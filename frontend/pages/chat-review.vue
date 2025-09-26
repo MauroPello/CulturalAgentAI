@@ -15,7 +15,8 @@
             class="w-full"
             placeholder="Paste your messages here..."
             :rows="10"
-            size="lg"
+            size="xl"
+            autoresize
           />
           <UButton class="mt-4" size="xl" @click="analyzeText"> Analyze </UButton>
         </div>
