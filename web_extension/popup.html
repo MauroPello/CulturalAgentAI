@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cultural Agent Text Selector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <h1>🤖 Cultural Agent</h1>
+      <p>Text Alignment Extension</p>
+    </div>
+    
+    <div class="content">
+      <div class="section">
+        <h3>How to use:</h3>
+        <ol>
+          <li>Select any text on a webpage</li>
+          <li>Click the floating "Send to Cultural Agent" button</li>
+          <li>Or right-click and choose "Send to Cultural Agent"</li>
+          <!--<li>Or use keyboard shortcut: <kbd>Ctrl+Shift+C</kbd></li>-->
+        </ol>
+      </div>
+      
+      <div class="section">
+        <h3>Target culture:</h3>
+        <div class="culture-selector">
+          <select id="cultureSelect" class="culture-dropdown">
+            <option value="American">American</option>
+            <option value="British">British</option>
+            <option value="Australian">Australian</option>
+            <option value="Spanish">Spanish</option>
+            <option value="Mexican">Mexican</option>
+            <option value="Argentinian">Argentinian</option>
+            <option value="French">French</option>
+            <option value="Canadian">Canadian</option>
+            <option value="German">German</option>
+            <option value="Austrian">Austrian</option>
+            <option value="Italian">Italian</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Brazilian">Brazilian</option>
+            <option value="Russian">Russian</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Korean">Korean</option>
+            <option value="Saudi Arabian">Saudi Arabian</option>
+            <option value="Indian">Indian</option>
+            <option value="Dutch">Dutch</option>
+            <option value="Swedish">Swedish</option>
+            <option value="Norwegian">Norwegian</option>
+            <option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option>
+            <option value="Polish">Polish</option>
+            <option value="Turkish">Turkish</option>
+            <option value="Israeli">Israeli</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Target language:</h3>
+        <div class="language-selector">
+          <select id="languageSelect" class="language-dropdown">
+            <option value="English">English</option>
+            <option value="Spanish">Spanish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Italian">Italian</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Russian">Russian</option>
+            <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+            <option value="Chinese (Traditional)">Chinese (Traditional)</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Korean">Korean</option>
+            <option value="Arabic">Arabic</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Dutch">Dutch</option>
+            <option value="Swedish">Swedish</option>
+            <option value="Norwegian">Norwegian</option>
+            <option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option>
+            <option value="Polish">Polish</option>
+            <option value="Turkish">Turkish</option>
+            <option value="Hebrew">Hebrew</option>
+            <option value="Thai">Thai</option>
+            <option value="Vietnamese">Vietnamese</option>
+            <option value="Indonesian">Indonesian</option>
+            <option value="Malay">Malay</option>
+            <option value="Filipino">Filipino</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Selected text:</h3>
+        <div id="lastSelectedText" class="text-preview">
+          No text selected yet.
+        </div>
+      </div>
+      
+      <div class="section">
+        <h3>Recommended version:</h3>
+        <div id="currentSelection" class="selection-display empty">
+          No text currently selected.
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button id="alignText" class="btn btn-primary">Align Text</button>
+        <!-- <button id="clearHistory" class="btn btn-secondary">Clear History</button>
+        <button id="openSettings" class="btn btn-primary">Settings</button> -->
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
