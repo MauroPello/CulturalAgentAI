@@ -143,9 +143,12 @@
 
 <script setup lang="ts">
 import { usePlans } from '~/composables/usePlans';
+import { useChats } from '~/composables/useChats';
 
 const { plans } = usePlans();
+const { chats } = useChats();
 const latestPlans = computed(() => plans.value.slice(0, 3));
+const latestChats = computed(() => chats.value.slice(0, 3));
 
 const cards = [
   {
@@ -180,11 +183,6 @@ const cards = [
   },
 ]
 
-const latestChats = [
-  { id: 1, title: 'Meeting Reschedule' },
-  { id: 2, title: 'Document Request' },
-  { id: 3, title: 'Project Question' },
-]
 const latestDocuments = [
   { id: 1, name: 'Project Proposal.pdf', url: '#' },
   { id: 2, name: 'Meeting Notes.docx', url: '#' },

@@ -3,3 +3,9 @@ export interface Message {
   text: string
   isUser: boolean
 }
+
+export interface Chat {
+  id: number
+  title: string
+  messages: Message[]
+}
