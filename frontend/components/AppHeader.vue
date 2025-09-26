@@ -9,7 +9,7 @@ const route = useRoute();
   <div class="landing-page-navigator__container">
     <div
       class="flex flex-row items-center justify-center text-white bg-primary-500 w-full py-0.5 cursor-pointer text-center"
-      @click="async () => await navigateTo('/chat')"
+      @click="async () => await navigateTo('/user-welcome')"
     >
       <div class="overflow-hidden w-full">
         <div class="marquee-wrapper">
@@ -27,7 +27,7 @@ const route = useRoute();
       <div class="landing-page-navigator__group pe-1">
         <NuxtLink
           class="landing-page-navigator__logo__link"
-          to="/"
+          :to="route.path === '/' ? '/' : '/user-welcome'"
         >
           <BaseLogo
             :small="true"
@@ -35,14 +35,6 @@ const route = useRoute();
           <p>{{ companyName }}</p>
         </NuxtLink>
         <template v-if="route.path !== '/'">
-          <UButton
-            size="sm"
-            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-            variant="ghost"
-            to="/upload"
-          >
-            Upload
-          </UButton>
           <UButton
             size="sm"
             class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
@@ -55,31 +47,32 @@ const route = useRoute();
             size="sm"
             class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
             variant="ghost"
+            to="/my-plans"
+          >
+            My Plans
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
+            to="/ai-chat"
+          >
+            AI Chat
+          </UButton>
+          <UButton
+            size="sm"
+            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+            variant="ghost"
             to="/chat-review"
           >
-            Review Plans
-          </UButton>
-          <UButton
-            size="sm"
-            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-            variant="ghost"
-            to="/chat"
-          >
-            Chat
-          </UButton>
-          <UButton
-            size="sm"
-            class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
-            variant="ghost"
-            to="/gantt"
-          >
-            Gantt
+            Review Chat
           </UButton>
         </template>
       </div>
       <ClientOnly>
         <div class="landing-page-navigator__group !gap-0">
           <UButton
+            v-if="route.path === '/'"
             color="gray"
             variant="link"
             aria-label="Ask AI"
@@ -93,7 +86,7 @@ const route = useRoute();
             :label="isMinimumSm ? 'Start Planning' : 'Start'"
             :size="isMinimumSm ? 'lg' : 'md'"
             class="text-base"
-            to="/user-welcome"
+            :to="route.path === '/' ? '/user-welcome' : '/new-plan'"
           />
         </div>
       </ClientOnly>
@@ -131,7 +124,7 @@ const route = useRoute();
 .marquee-text {
   display: inline-block;
   padding-left: 1rem;
-  padding-right: 10rem;
+  padding-right: 15rem;
 }
 
 .marquee-wrapper {
