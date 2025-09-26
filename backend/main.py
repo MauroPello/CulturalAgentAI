@@ -8,6 +8,7 @@ import pandas as pd
 from processing.loader import load_document_text
 from processing.chunker import chunk_text
 from processing.embedder import embed_chunks
+from processing.vector_store import add_documents_to_store, get_document_count
 
 app = FastAPI()
 
@@ -59,20 +60,36 @@ async def process_document_endpoint(file: UploadFile = File(...)):
         # 5. Embed the chunks
         embeddings = embed_chunks(chunks)
 
-
-        # In the future, you will add embedding and vector DB storage steps here.
+        # 6. Store in Vector Database (NEW STEP)
+        # Create metadata for each chunk
+        metadatas = [{
+            "filename": file.filename,
+            "file_id": file_id
+        } for _ in chunks]
+        add_documents_to_store(chunks, embeddings, metadatas)
 
         return JSONResponse(
             status_code=200,
             content={
-                "message": "Document processed successfully.",
+                "message": "Document processed and stored successfully.",
                 "file_id": file_id,
                 "filename": file.filename,
-                "chunk_count": len(chunks),
-                "embedding_count": len(embeddings),
-                #"chunks": chunks, # For now, we return the chunks. Later, you might just return a success message.
+                "chunks_added": len(chunks),
+                "total_documents_in_store": get_document_count() # Get total count
             }
         )
+
+        # return JSONResponse(
+        #     status_code=200,
+        #     content={
+        #         "message": "Document processed successfully.",
+        #         "file_id": file_id,
+        #         "filename": file.filename,
+        #         "chunk_count": len(chunks),
+        #         "embedding_count": len(embeddings),
+        #         #"chunks": chunks, # For now, we return the chunks. Later, you might just return a success message.
+        #     }
+        # )
 
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
