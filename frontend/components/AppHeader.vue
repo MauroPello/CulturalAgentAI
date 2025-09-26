@@ -45,6 +45,14 @@ const { isMinimumSm, width } = useScreenSize();
           size="sm"
           class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
           variant="ghost"
+          to="/library"
+        >
+          Library
+        </UButton>
+        <UButton
+          size="sm"
+          class="hidden sm:block sm:text-lg text-gray-700 hover:text-black"
+          variant="ghost"
           to="/chat-review"
         >
           Review Chat
