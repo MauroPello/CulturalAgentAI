@@ -1,6 +1,15 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
+
+class ChatMessage(BaseModel):
+    role: str  # "user", "assistant", or "system"
+    content: str
+
+class ChatCompletionRequest(BaseModel):
+    messages: List[ChatMessage]
+    temperature: Optional[float] = 0.1
+    max_tokens: Optional[int] = 512
 
 class SearchStrategy(str, Enum):
     RAG = "RAG"

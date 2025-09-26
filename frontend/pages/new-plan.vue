@@ -1,59 +1,125 @@
 <script setup lang="ts">
-import type { Message } from "~/types/chat";
+import type { Message, ChatCompletionResponse } from "~/types/chat";
 import MarkdownIt from "markdown-it";
+
+// Type for the make_plan API response
+interface MakePlanResponse {
+  success: boolean;
+  gantt_plan?: {
+    project_name: string;
+    project_description: string;
+    [key: string]: any;
+  };
+  error?: string;
+  processing_time_seconds?: number;
+  timestamp?: string;
+}
 
 const md = new MarkdownIt();
 
 const messages = ref<Message[]>([
   {
-    id: 1,
-    text: "Hello! I am an AI expert in foreign market expansion. How can I help you today?",
-    isUser: false,
-  },
-  {
-    id: 2,
-    text: "I want to create a plan to expand my business into a new country.",
-    isUser: true,
-  },
-  {
-    id: 3,
-    text: "Excellent! To create a successful expansion plan, we need to consider several factors. Which country are you considering for expansion?",
-    isUser: false,
-  },
+    content: "Hello! I am an AI expert in foreign market expansion. How can I help you today?",
+    role: "assistant",
+  }
 ]);
 
 const newMessage = ref("");
 const isModalOpen = ref(false);
+const isLoading = ref(false);
 
 const { createPlan } = usePlans();
 
-function sendMessage() {
+async function sendMessage() {
   if (newMessage.value.trim() === "") return;
 
+  const userMessage = newMessage.value;
+  
+  // Add user message to chat
   messages.value.push({
-    id: messages.value.length + 1,
-    text: newMessage.value,
-    isUser: true,
+    content: userMessage,
+    role: "user",
   });
 
-  // Simulate a response from the LLM
-  setTimeout(() => {
-    messages.value.push({
-      id: messages.value.length + 1,
-      text: "That's a great choice. Let's start by analyzing the market size and growth potential in that country.",
-      isUser: false,
-    });
-  }, 1000);
-
   newMessage.value = "";
+  isLoading.value = true;
+
+  try {
+    // Call the chat completion API
+    const response = await $fetch<ChatCompletionResponse>('/chat-completion', {
+      method: 'POST',
+      baseURL: 'http://localhost:8000',
+      body: {
+        messages: messages.value.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        temperature: 0.1,
+        max_tokens: 1000
+      }
+    });
+
+    // Add AI response to chat
+    if (response.choices && response.choices[0] && response.choices[0].message) {
+      messages.value.push({
+        content: response.choices[0].message.content,
+        role: "assistant",
+      });
+    }
+  } catch (error) {
+    console.error('Error calling chat completion:', error);
+    // Add error message to chat
+    messages.value.push({
+      content: "Sorry, I encountered an error. Please try again.",
+      role: "assistant",
+    });
+  } finally {
+    isLoading.value = false;
+  }
 }
 
-function confirmBuildPlan() {
-  const newPlan = createPlan(
-    "New Market Expansion Plan",
-    "A plan to expand the business into a new country."
-  );
-  navigateTo(`/plans/${newPlan.id}`);
+async function confirmBuildPlan() {
+  isLoading.value = true;
+  
+  try {
+    // Call the make_plan endpoint with the current chat history
+    const response = await $fetch<MakePlanResponse>('/make_plan', {
+      method: 'POST',
+      baseURL: 'http://localhost:8000',
+      body: {
+        messages: messages.value.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        project_name: "New Market Expansion Plan"
+      }
+    });
+
+    console.log('Make Plan Response:', response);
+    if (response.success && response.gantt_plan) {
+      console.log(response.gantt_plan);
+      // Create a plan using the generated Gantt data
+      const newPlan = createPlan(
+        response.gantt_plan.project_name || "New Market Expansion Plan",
+        response.gantt_plan.project_description || "A plan generated from chat conversation"
+      );
+      
+      // Update the plan with the Gantt data
+      Object.assign(newPlan, response.gantt_plan);
+      
+      // Close modal and navigate to the new plan
+      isModalOpen.value = false;
+      navigateTo(`/plans/${newPlan.id}`);
+    } else {
+      console.error('Failed to generate plan:', response.error);
+      // You might want to show an error message to the user here
+    }
+  } catch (error) {
+    console.error('Error calling make_plan endpoint:', error);
+    // You might want to show an error message to the user here
+  } finally {
+    isLoading.value = false;
+  }
 }
 </script>
 
@@ -81,19 +147,28 @@ function confirmBuildPlan() {
         <div class="flex flex-col h-full">
           <div class="flex-1 space-y-4 overflow-y-auto p-4">
             <div
-              v-for="message in messages"
-              :key="message.id"
+              v-for="(message, index) in messages"
+              :key="index"
               class="flex w-full"
-              :class="message.isUser ? 'justify-end' : 'justify-start'"
+              :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
             >
               <div
                 class="prose max-w-xs break-words rounded-lg p-3"
                 :class="{
-                  'bg-primary-500 text-white prose-invert': message.isUser,
-                  'bg-gray-200 text-gray-900': !message.isUser,
+                  'bg-primary-500 text-white prose-invert': message.role === 'user',
+                  'bg-gray-200 text-gray-900': message.role === 'assistant',
                 }"
-                v-html="md.render(message.text)"
+                v-html="md.render(message.content)"
               />
+            </div>
+            <!-- Loading indicator -->
+            <div v-if="isLoading" class="flex w-full justify-start">
+              <div class="max-w-xs break-words rounded-lg p-3 bg-gray-200 text-gray-900">
+                <div class="flex items-center space-x-2">
+                  <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
+                  <span>AI is thinking...</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="flex w-full flex-col gap-3 justify-center items-center border-t p-4">
@@ -103,14 +178,17 @@ function confirmBuildPlan() {
                 size="xl"
                 class="flex-1 text-base"
                 placeholder="Type a message..."
+                :disabled="isLoading"
                 @keyup.enter="sendMessage"
               />
               <UButton
                 size="xl"
-                label="Send"
+                :label="isLoading ? 'Processing...' : 'Send'"
                 variant="soft"
-                icon="i-heroicons-paper-airplane"
+                :icon="isLoading ? 'i-heroicons-arrow-path' : 'i-heroicons-paper-airplane'"
                 class="ml-2"
+                :loading="isLoading"
+                :disabled="isLoading"
                 @click="sendMessage"
               />
               <UButton
@@ -162,14 +240,31 @@ function confirmBuildPlan() {
             </div>
           </template>
 
-          <p>Are you sure you want to create a new plan?</p>
+          <div v-if="isLoading" class="flex items-center space-x-3">
+            <UIcon name="i-heroicons-arrow-path" class="animate-spin text-primary-500" />
+            <p>Generating your personalized plan from the chat conversation...</p>
+          </div>
+          <p v-else>Are you sure you want to create a new plan based on your conversation?</p>
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="gray" variant="ghost" size="xl" @click="isModalOpen = false"
-                >Cancel</UButton
+              <UButton 
+                color="gray" 
+                variant="ghost" 
+                size="xl" 
+                :disabled="isLoading"
+                @click="isModalOpen = false"
               >
-              <UButton size="xl" @click="confirmBuildPlan">Create Plan</UButton>
+                Cancel
+              </UButton>
+              <UButton 
+                size="xl" 
+                :loading="isLoading"
+                :disabled="isLoading"
+                @click="confirmBuildPlan"
+              >
+                {{ isLoading ? 'Generating Plan...' : 'Create Plan' }}
+              </UButton>
             </div>
           </template>
         </UCard>
