@@ -8,7 +8,9 @@ const route = useRoute();
 <template>
   <div class="landing-page-navigator__container">
     <div
-      class="flex flex-row items-center justify-center text-white bg-primary-500 w-full py-0.5 cursor-pointer text-center"
+        class="flex flex-row items-center justify-center text-white w-full py-0.5 cursor-pointer text-center"
+        style="background-color: rgb(194, 37, 6);"
+
       @click="async () => await navigateTo('/user-welcome')"
     >
       <div class="overflow-hidden w-full">
@@ -23,7 +25,7 @@ const route = useRoute();
         </div>
       </div>
     </div>
-    <div class="landing-page-navigator">
+    <div class="landing-page-navigator" style="background-color: rgb(230, 100, 70);">
       <div class="landing-page-navigator__group pe-1">
         <NuxtLink
           class="landing-page-navigator__logo__link"
@@ -71,17 +73,16 @@ const route = useRoute();
       </div>
       <ClientOnly>
         <div class="landing-page-navigator__group !gap-0">
-          <UButton
-            v-if="route.path === '/'"
-            color="gray"
-            variant="link"
-            aria-label="Ask AI"
-            trailing
-            class="!gap-x-1 text-base"
-            label="Ask AI"
-            :size="isMinimumSm ? 'lg' : 'md'"
-            to="/user-welcome"
-          />
+           <UButton
+    v-if="route.path === '/'"
+    variant="link"
+    aria-label="Ask AI"
+    trailing
+    class="!gap-x-1 text-base text-white"
+    label="Ask AI"
+    :size="isMinimumSm ? 'lg' : 'md'"
+    to="/user-welcome"
+  />
           <UButton
             :label="isMinimumSm ? 'Start Planning' : 'Start'"
             :size="isMinimumSm ? 'lg' : 'md'"
