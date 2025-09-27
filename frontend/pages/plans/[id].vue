@@ -59,6 +59,30 @@
         </template>
       </UCard>
     </UModal>
+
+    <UModal v-model="isRefineModalOpen">
+      <UCard>
+        <template #header>
+          <h2 class="text-xl font-bold">
+            Refine Plan
+          </h2>
+        </template>
+
+        <p class="mb-4 text-base text-gray-600">Describe the changes you'd like to make to your plan. The AI will update the Gantt chart based on your prompt.</p>
+        <UTextarea v-model="refinePrompt" :rows="12" placeholder="e.g., 'Add a new task called Design Mockups after the Research phase and before the Development phase. It should take 5 days.'" />
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" size="xl" @click="isRefineModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton size="xl" @click="confirmRefine">
+              Refine Plan
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
@@ -72,10 +96,12 @@ const router = useRouter();
 const planId = route.params.id as string;
 const plan = ref<Plan | undefined>(undefined);
 const isModalOpen = ref(false);
+const isRefineModalOpen = ref(false);
+const refinePrompt = ref('');
 
 onMounted(() => {
   plan.value = getPlanById(planId);
-  
+
   // If plan is not found immediately, try again after a short delay
   // This handles cases where localStorage might need a moment to sync
   if (!plan.value) {
@@ -95,6 +121,12 @@ const confirmDelete = () => {
 };
 
 const handleRefine = () => {
+  isRefineModalOpen.value = true;
+};
+
+const confirmRefine = () => {
   // TODO: Implement refine logic
+  console.log(refinePrompt.value);
+  isRefineModalOpen.value = false;
 };
 </script>
