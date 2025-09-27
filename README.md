@@ -1,14 +1,27 @@
-# CulturalAgentAI
+<div align="center">
+  <img src="assets/cultura_logo_no_bg.png" alt="Cultura Logo" width="300">
+</div>
 
-An AI-powered platform for small and medium-sized businesses to expand into foreign markets with confidence. Built with Swiss-AI Apertus LLM for cultural intelligence and transparent, self-hostable AI consultation services.
+# Cultura - Cultural AI Agent
+
+An AI-powered platform for small and medium-sized businesses to expand into foreign markets with confidence. Built with the Swiis Apertus LLM for **multicultural** intelligence, **multilingual** understanding, and **transparent**, **self-hostable** AI consultation services.
 
 ## 🌟 Key Features
 
-- **AI Market Expansion Consulting** - Interactive chat for expansion strategies
-- **Gantt Chart Generation** - Convert discussions into actionable project plans  
-- **Cultural Intelligence** - Powered by Apertus LLM trained on global languages/cultures
-- **Document Intelligence** - Upload company docs for contextual recommendations
-- **Privacy First** - Self-hostable with complete data sovereignty
+- **AI market expansion consulting**: Interactive chat for expansion strategies
+- **Gantt chart generation**: Convert discussions into actionable project plans  
+- **Cultural intelligence**: Powered by Apertus LLM trained on global languages and cultures
+- **Document intelligence**: Upload company docs for contextual recommendations
+- **Cultural alignment web extension**: Align any text/email/message on the browser to target language and culture 
+- **Privacy-first** - Self-hostable with complete data sovereignty
+
+## 🧩 Components of Cultura
+
+Our solutions is composed of 2+1 **amazing** parts:
+
+- **Website for expansion strategies**: Add your company's documents, chat with our agent (which has RAG and web search), define your goals and have the agent generate a contextually-relevant plan
+- **Web extension for cultural alignment**: When emailing a colleague in a different country, use our extension to align your text to the colleague's language and culture, avoiding misunderstandings
+- **Fine-tuned Apertus for tool use**: We contribute to the development of Apertus by fine-tuning the 8B model for function calling. We made this version available on [Hugging Face](https://huggingface.co/mattiaferrarini/Apertus-8B-Instruct-2509-tool-use) with the [training code](https://huggingface.co/mattiaferrarini/Apertus-8B-Instruct-2509-tool-use/blob/main/apertus_function_calling.ipynb) as well
 
 ## 🐳 Docker Setup
 
