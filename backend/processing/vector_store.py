@@ -47,4 +47,25 @@ class VectorStore:
         """Returns the total number of documents in the collection."""
         return self.collection.count()
 
+    def delete_documents_by_file_id(self, file_id: str) -> int:
+        """
+        Deletes all documents associated with a specific file_id.
+        Returns the number of documents deleted.
+        """
+        try:
+            # Get all documents with this file_id
+            results = self.collection.get(
+                where={"file_id": {"$eq": file_id}}
+            )
+            
+            if results and results.get('ids'):
+                ids_to_delete = results['ids']
+                self.collection.delete(ids=ids_to_delete)
+                return len(ids_to_delete)
+            
+            return 0
+        except Exception as e:
+            print(f"Error deleting documents for file_id {file_id}: {e}")
+            return 0
+
 vector_store_instance = VectorStore()
