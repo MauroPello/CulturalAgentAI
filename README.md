@@ -51,8 +51,12 @@ Our solutions is composed of 2+1 **amazing** parts:
    - **Business Platform**: http://localhost:3000
    - **AI API**: http://localhost:8000
    - **API Docs**: http://localhost:8000/docs
+  
+4. **Load the extension**:
+   We recommend doing it on Firefox going to about:debugging > This Firefox > Load Temporary Add-on > selecting manifest.json from the web_extension folder.
+   On any page, select some text, right click and choose "Send to Cultural Agent" in the pop-up. Open the extension pop-up and align with your desired language and culture.
 
-4. **Stop the platform**:
+6. **Stop the platform**:
    ```bash
    docker-compose down
    ```
