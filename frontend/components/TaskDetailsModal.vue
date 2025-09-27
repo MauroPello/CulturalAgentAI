@@ -45,10 +45,10 @@
             <UIcon name="i-heroicons-chart-pie" class="h-6 w-6 text-gray-500 mr-4" />
             <div>
               <p class="text-sm font-medium text-gray-500">Progress</p>
-              <p class="text-lg font-semibold text-gray-800">{{ task.progress_percentage }}%</p>
+              <p class="text-lg font-semibold text-gray-800">{{ task.progress }}%</p>
             </div>
           </div>
-          <UProgress :value="task.progress_percentage" size="lg" />
+          <UProgress :value="task.progress" size="lg" />
         </div>
       </div>
     </UCard>

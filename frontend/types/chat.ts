@@ -1,3 +1,5 @@
+import type { Task } from "./plan"
+
 export interface Message {
   content: string
   role: "user" | "assistant" | "system"
@@ -28,22 +30,7 @@ export interface GanttPlanResponse {
   gantt_plan?: {
     project_name: string
     project_description: string
-    tasks: Array<{
-      id: string
-      name: string
-      start_date: string
-      end_date: string
-      duration: number
-      dependencies: string[]
-      progress: number
-      resource: string
-    }>
-    milestones: Array<{
-      id: string
-      name: string
-      date: string
-      description: string
-    }>
+    tasks: Array<Task>
   }
   error?: string
   processing_time_seconds: number

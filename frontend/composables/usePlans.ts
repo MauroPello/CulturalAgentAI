@@ -1,4 +1,3 @@
-import { ganttData } from "~/constants/ganttData";
 import type { Plan } from "~/types/plan";
 
 const STORAGE_KEY = "gantt-plans";
@@ -43,7 +42,7 @@ export const usePlans = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createPlan = (projectName: string, projectDescription: string, ganttPlan?: any) => {
     const newPlan: Plan = {
-      ...(ganttPlan || ganttData.gantt_plan),
+      ...(ganttPlan),
       id: String(new Date().getTime()),
       project_name: projectName,
       project_description: projectDescription,

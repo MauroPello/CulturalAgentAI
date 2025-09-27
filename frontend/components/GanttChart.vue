@@ -59,7 +59,7 @@ function generateItemsFromData(): { [key: string]: Item } {
         start: GSTC.api.date(task.start_date).startOf('day').valueOf(),
         end: GSTC.api.date(task.end_date).endOf('day').valueOf(),
       },
-      progress: task.progress_percentage,
+      progress: task.progress,
       dependencies: task.dependencies.map(depId => GSTC.api.GSTCID(depId)),
     };
   });
