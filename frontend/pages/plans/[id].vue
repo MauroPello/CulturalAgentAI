@@ -150,20 +150,26 @@ const confirmRefine = async () => {
     const result = await response.json();
 
     if (result.success && result.gantt_plan) {
-      const updatedPlanData = {
-        ...plan.value,
+      // The backend returns a complete, updated plan object.
+      // We need to preserve the top-level ID from the original plan.
+      const updatedPlanData: Plan = {
         ...result.gantt_plan,
+        id: plan.value.id, // Preserve the original plan ID
       };
+
       updatePlan(planId, updatedPlanData);
       plan.value = updatedPlanData; // Refresh the local state
       isRefineModalOpen.value = false;
       refinePrompt.value = '';
-      isRefining.value = false;
     } else {
       console.error("Error refining plan:", result.error);
+      // Optionally, show a toast or notification to the user
     }
   } catch (error) {
     console.error("An error occurred during plan refinement:", error);
+    // Optionally, show a toast or notification to the user
+  } finally {
+    isRefining.value = false;
   }
 };
 </script>

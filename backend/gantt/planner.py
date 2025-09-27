@@ -98,30 +98,41 @@ Return ONLY valid JSON matching this exact schema with all required fields. Use 
                     messages.append({"role": "user", "content": error_feedback})
                     print("Retrying with corrective feedback...")
                 else:
-                    raise Exception(f"Failed to generate a valid Gantt plan after {max_retries} attempts. Last error: {e}")
+                    raise Exception(f"Failed to generate a valid modified Gantt plan after {max_retries} attempts. Last error: {e}")
 
             except Exception as e:
                 raise Exception(f"API call or processing failed: {e}")
 
-        raise Exception("Failed to generate a valid Gantt plan.")
+        raise Exception("Failed to generate a valid modified Gantt plan.")
 
     def modify_gantt_plan(self, existing_plan: dict, prompt: str, max_retries: int = 3) -> dict:
         """Modify an existing Gantt plan based on a prompt with validation and retries."""
 
-        schema_description = self.gantt_plan_adapter.json_schema()
+        # The schema is implicitly defined by the structure of `existing_plan`.
+        # Providing the full schema can confuse the model into returning the schema itself.
+        
+        # Convert the existing plan to a JSON string to serve as a template.
+        existing_plan_json = json.dumps(existing_plan, indent=2)
 
         messages = [
-            {"role": "system", "content": f"""You are an AI project planner. Given an existing Gantt project plan and modification instructions, generate an updated Gantt project plan as JSON strictly matching the schema below.
+            {
+                "role": "system",
+                "content": (
+                    "You are an AI project planner. Your task is to modify a Gantt plan provided in JSON format based on user instructions. "
+                    "You must return a complete and valid JSON object that represents the *entire updated plan*. "
+                    "Follow the structure of the original plan exactly, including all fields. Do not omit any fields from the original plan."
+                )
+            },
+            {
+                "role": "user",
+                "content": f"""Here is the existing Gantt project plan:
+{existing_plan_json}
 
-{json.dumps(schema_description, indent=2)}
+Please modify this plan according to these instructions: "{prompt}"
 
-Return ONLY valid JSON matching this exact schema with all required fields. Use the field names exactly as specified. Make sure to preserve the existing structure and data while applying the requested modifications."""},
-            {"role": "user", "content": f"""Here is the existing Gantt project plan:
-{json.dumps(existing_plan, indent=2)}
-
-Please modify this plan according to these instructions: {prompt}
-
-Generate the complete updated JSON response following the exact schema structure provided in the system message. Ensure all required fields are included and the modifications are properly applied while maintaining data consistency."""}
+Return only the complete, updated JSON object for the entire plan. Ensure the output is a single, valid JSON object and nothing else.
+"""
+            }
         ]
 
         for attempt in range(max_retries):
