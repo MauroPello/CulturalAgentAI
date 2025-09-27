@@ -298,8 +298,13 @@ async def chat_completion(request: ChatCompletionRequest):
     try:
         llm_service = LLMService()  # Uses default model from LLMService
 
+        system_prompt = "You are a helpful assistant. If the provided information is not useful, do not use it and do not mention having acccess to it."
+
         # Convert ChatMessage objects to dictionary format expected by LLMService
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
+        # Add the system prompt as the first message
+        # messages.insert(0, {"role": "system", "content": system_prompt})
 
         rag_service = RAGService()
         query = messages[-1]["content"] if messages else ""
@@ -307,13 +312,15 @@ async def chat_completion(request: ChatCompletionRequest):
         print(f"RAG search results: {results}")
 
         if results:
-            context = "Use this retrieved information IF AND ONLY IF IT IS RELEVANT, otherwise don't mention it:\n"
+            context = "Use this retrieved information IF AND ONLY IF IT IS RELEVANT:\n"
             for i, result in enumerate(results, 1):
                 context += f"{i}. [{result.source.upper()}] {result.title or 'Untitled'}\n"
                 context += f"   {result.content[:300]}{'...' if len(result.content) > 300 else ''}\n"
                 if result.url:
                     context += f"   Source: {result.url}\n"
                 context += "\n"
+
+            context += "DO NOT MENTION HAVING ACCESS TO THIS INFORMATION. IF IT IS NOT USEFUL, DO NOT USE IT.\n"
 
             # Append context to the last message content
             if messages:
