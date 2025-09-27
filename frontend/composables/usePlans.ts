@@ -33,6 +33,7 @@ export const usePlans = () => {
     plans.value = plans.value.filter((p) => p.id !== id);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createPlan = (projectName: string, projectDescription: string, ganttPlan?: any) => {
     const newPlan: Plan = {
       ...(ganttPlan || ganttData.gantt_plan),

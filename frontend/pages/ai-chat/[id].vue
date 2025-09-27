@@ -61,17 +61,15 @@ async function sendMessage() {
 
   // Add user message
   const userMessage: Message = {
-    id: Date.now(),
-    text: messageText,
-    isUser: true,
+    content: messageText,
+    role: "user",
   };
   activeChat.value.messages.push(userMessage);
 
   try {
     // Call the ask endpoint with conversation context
     const conversationHistory = activeChat.value.messages
-      .filter((msg) => msg.id !== userMessage.id) // Exclude current message
-      .map((msg) => `${msg.isUser ? "Human" : "AI"}: ${msg.text}`)
+      .map((msg) => `${msg.role === "user" ? "Human" : "AI"}: ${msg.content}`)
       .join("\n");
 
     const queryWithContext = conversationHistory
@@ -88,9 +86,8 @@ async function sendMessage() {
     // Add AI response
     if (activeChat.value) {
       activeChat.value.messages.push({
-        id: Date.now() + 1,
-        text: response.answer,
-        isUser: false,
+        content: response.answer,
+        role: "assistant",
       });
 
       // Update chat title based on first user message if it's still the default
@@ -100,10 +97,10 @@ async function sendMessage() {
       ) {
         // Generate a title from the first user message (truncated)
         const firstUserMessage = activeChat.value.messages.find(
-          (msg) => msg.isUser
+          (msg) => msg.role === "user"
         );
         if (firstUserMessage) {
-          activeChat.value.title = `${firstUserMessage.text.slice(0, 30)}...`;
+          activeChat.value.title = `${firstUserMessage.content.slice(0, 30)}...`;
         }
       }
     }
@@ -112,9 +109,8 @@ async function sendMessage() {
     // Add error message
     if (activeChat.value) {
       activeChat.value.messages.push({
-        id: Date.now() + 1,
-        text: "Sorry, I encountered an error. Please try again.",
-        isUser: false,
+        content: "Sorry, I encountered an error. Please try again.",
+        role: "assistant",
       });
     }
   } finally {
@@ -267,18 +263,18 @@ function saveEditedTitle(chatId: number) {
           <!-- Messages -->
           <div class="flex-1 space-y-4 overflow-y-auto p-4">
             <div
-              v-for="message in activeChat.messages"
-              :key="message.id"
+              v-for="(message, idx) in activeChat.messages"
+              :key="idx"
               class="flex w-full"
-              :class="message.isUser ? 'justify-end' : 'justify-start'"
+              :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
             >
               <div
                 class="prose max-w-xs break-words rounded-lg p-3"
                 :class="{
-                  'bg-primary-500 text-white prose-invert': message.isUser,
-                  'bg-gray-200 text-gray-900': !message.isUser,
+                  'bg-primary-500 text-white prose-invert': message.role === 'user',
+                  'bg-gray-200 text-gray-900': message.role !== 'user',
                 }"
-                v-html="md.render(message.text)"
+                v-html="md.render(String(message.content))"
               />
             </div>
 

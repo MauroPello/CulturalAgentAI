@@ -17,36 +17,6 @@ export function useChats() {
       if (storedChats) {
         chats.value = JSON.parse(storedChats)
       }
-      else {
-        const sampleChats: Chat[] = [
-          {
-            id: 1,
-            title: 'Meeting Reschedule',
-            messages: [
-              { id: 1, text: 'Hi team, I need to reschedule our meeting.', isUser: true },
-              { id: 2, text: 'No problem, what time works for you?', isUser: false },
-            ],
-          },
-          {
-            id: 2,
-            title: 'Document Request',
-            messages: [
-              { id: 1, text: 'Can you send me the project proposal?', isUser: true },
-              { id: 2, text: 'Sure, I will send it right away.', isUser: false },
-            ],
-          },
-          {
-            id: 3,
-            title: 'Project Question',
-            messages: [
-              { id: 1, text: 'I have a question about the budget.', isUser: true },
-              { id: 2, text: 'I can help with that, what is your question?', isUser: false },
-            ],
-          },
-        ]
-        chats.value = sampleChats
-        _saveChats()
-      }
     }
   })
 
@@ -63,9 +33,8 @@ export function useChats() {
       title: `New Chat ${newId}`,
       messages: [
         {
-          id: 1,
-          text: 'Hello! I am an AI expert in international business and consulting. How can I help you today?',
-          isUser: false,
+          content: 'Hello! I am an AI expert in international business and consulting. How can I help you today?',
+          role: "assistant",
         },
       ],
     }

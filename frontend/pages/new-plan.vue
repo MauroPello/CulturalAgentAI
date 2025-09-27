@@ -8,6 +8,7 @@ interface MakePlanResponse {
   gantt_plan?: {
     project_name: string;
     project_description: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
   error?: string;
@@ -34,7 +35,7 @@ async function sendMessage() {
   if (newMessage.value.trim() === "") return;
 
   const userMessage = newMessage.value;
-  
+
   // Add user message to chat
   messages.value.push({
     content: userMessage,
@@ -80,7 +81,7 @@ async function sendMessage() {
 
 async function confirmBuildPlan() {
   isLoading.value = true;
-  
+
   try {
     // Call the make_plan endpoint with the current chat history
     const response = await $fetch<MakePlanResponse>('/make_plan', {
@@ -103,10 +104,10 @@ async function confirmBuildPlan() {
         response.gantt_plan.project_name || "New Market Expansion Plan",
         response.gantt_plan.project_description || "A plan generated from chat conversation"
       );
-      
+
       // Update the plan with the Gantt data
       Object.assign(newPlan, response.gantt_plan);
-      
+
       // Close modal and navigate to the new plan
       isModalOpen.value = false;
       navigateTo(`/plans/${newPlan.id}`);
@@ -165,9 +166,9 @@ async function confirmBuildPlan() {
             <div v-if="isLoading" class="flex w-full justify-start">
               <div class="max-w-xs break-words rounded-lg p-3 bg-gray-200 text-gray-900">
                 <div class="flex space-x-1">
-                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"/>
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.1s"/>
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"/>
                 </div>
               </div>
             </div>
@@ -247,7 +248,7 @@ async function confirmBuildPlan() {
           </div>
           <p v-else>Are you sure you want to create a new plan based on your conversation?</p>
 
-          <template #footer v-if="!isLoading">
+          <template v-if="!isLoading" #footer>
             <div class="flex justify-end gap-2">
               <UButton color="gray" variant="ghost" size="xl" @click="isModalOpen = false"
                 >Cancel</UButton
