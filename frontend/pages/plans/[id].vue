@@ -75,6 +75,14 @@ const isModalOpen = ref(false);
 
 onMounted(() => {
   plan.value = getPlanById(planId);
+  
+  // If plan is not found immediately, try again after a short delay
+  // This handles cases where localStorage might need a moment to sync
+  if (!plan.value) {
+    setTimeout(() => {
+      plan.value = getPlanById(planId);
+    }, 100);
+  }
 });
 
 const handleDelete = () => {

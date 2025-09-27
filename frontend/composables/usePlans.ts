@@ -33,9 +33,9 @@ export const usePlans = () => {
     plans.value = plans.value.filter((p) => p.id !== id);
   };
 
-  const createPlan = (projectName: string, projectDescription: string) => {
+  const createPlan = (projectName: string, projectDescription: string, ganttPlan?: any) => {
     const newPlan: Plan = {
-      ...ganttData.gantt_plan,
+      ...(ganttPlan || ganttData.gantt_plan),
       id: String(new Date().getTime()),
       project_name: projectName,
       project_description: projectDescription,

@@ -3,7 +3,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 import uuid
 import logging
 import json
@@ -20,11 +20,12 @@ from processing.embedder import embed_chunks
 from processing.vector_store import vector_store_instance
 
 from routers.search import router as search_router
-from models.schemas import IntelligentSearchRequest, IntelligentSearchResponse
+from models.schemas import IntelligentSearchRequest, IntelligentSearchResponse, ChatCompletionRequest, ChatMessage
 from dependencies import get_query_router
 from services.query_router import QueryRouter
 import time
 from services.llm_services import get_public_ai_client
+from services.llm_services import LLMService
 
 from gantt.planner import SwissAIGanttPlanner, create_planner
 from gantt.models import GanttRequest, APIGanttResponse
@@ -280,6 +281,41 @@ async def ask_intelligent(request: IntelligentSearchRequest, query_router: Query
         tokens_used=tokens_used
     )
 
+@app.post("/chat-completion")
+async def chat_completion(request: ChatCompletionRequest):
+    try:
+        llm_service = LLMService()  # Uses default model from LLMService
+        
+        # Convert ChatMessage objects to dictionary format expected by LLMService
+        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        
+        # Generate response using the LLM service
+        response = await llm_service.generate_with_messages(
+            messages=messages,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature
+        )
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "choices": [{
+                    "message": {
+                        "role": "assistant",
+                        "content": response["text"]
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "total_tokens": response["tokens_used"]
+                },
+                "model": llm_service.model  # Use the model from the service
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error in chat completion: {str(e)}")
+
 @app.get("/uploaded-files")
 async def list_uploaded_files():
     try:
@@ -323,6 +359,10 @@ class CulturalAlignRequest(BaseModel):
     target_culture: str
     language: str
 
+class ChatHistoryRequest(BaseModel):
+    messages: List[ChatMessage]
+    project_name: Optional[str] = None
+
 @app.post("/cultural_align_text/")
 async def cultural_align_text(request: CulturalAlignRequest):
     try:
@@ -355,6 +395,78 @@ def get_planner() -> SwissAIGanttPlanner:
             detail=f"Configuration error: {str(e)}"
         )
     
+@app.post("/make_plan", response_model=APIGanttResponse)
+async def make_gantt_plan(
+    request: ChatHistoryRequest,
+    planner: SwissAIGanttPlanner = Depends(get_planner)
+):
+    """
+    Convert a chat history to a business plan summary and then to a structured Gantt chart JSON.
+    
+    - **messages**: Chat history in standard format (role: "user"/"assistant", content: string)
+    - **project_name**: Optional project name to use in the output
+    """
+    start_time = datetime.now()
+    
+    try:
+        # Validate input
+        if not request.messages or len(request.messages) == 0:
+            raise HTTPException(status_code=400, detail="Chat history cannot be empty")
+        
+        # Convert chat history to a format suitable for LLM
+        llm_client = get_public_ai_client()
+        
+        # Create a summary prompt from the chat history
+        chat_context = "\n".join([
+            f"{'User' if msg.role == 'user' else 'Assistant'}: {msg.content}"
+            for msg in request.messages
+        ])
+        
+        summary_prompt = f"""Please analyze the following chat conversation and create a concise business plan summary that captures the key project requirements, goals, and deliverables discussed.
+
+Chat History:
+{chat_context}
+
+Please provide a structured business plan summary that includes:
+1. Project overview and objectives
+2. Key requirements and deliverables
+3. Main phases or milestones
+4. Any timeline considerations mentioned
+5. Resources or team requirements discussed
+
+Business Plan Summary:"""
+        
+        print(f"Generating business plan summary from chat history...")
+        business_plan_summary = llm_client.simple_chat(summary_prompt)
+        print(f"Business plan summary generated: {business_plan_summary[:200]}...")
+        
+        # Use the summary to generate Gantt plan
+        gantt_data = planner.generate_gantt_plan(
+            description=business_plan_summary, 
+            project_name=request.project_name or "Project from Chat"
+        )
+        print(gantt_data)
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        return APIGanttResponse(
+            success=True,
+            gantt_plan=gantt_data,
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        processing_time = (datetime.now() - start_time).total_seconds()
+        return APIGanttResponse(
+            success=False,
+            error=str(e),
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
+    
+
 @app.post("/convert", response_model=APIGanttResponse)
 async def convert_to_gantt(
     request: GanttRequest, 

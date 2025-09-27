@@ -63,7 +63,7 @@ def get_public_ai_client() -> PublicAIClient:
     return PublicAIClient()
 
 class LLMService:
-    def __init__(self, api_key: str, model: str = "swiss-ai/apertus-8b-instruct"):
+    def __init__(self, api_key: str = None, model: str = "swiss-ai/apertus-8b-instruct"):
         self.client = PublicAIClient(api_key=api_key)
         self.model = model
         self.total_tokens_used = 0
