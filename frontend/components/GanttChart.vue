@@ -33,13 +33,13 @@ const selectedTask = ref<Task | null>(null);
 const isModalVisible = ref(false);
 
 const assigneeIcons: { [key: string]: string } = {};
-const availableIcons = ['/assets/icons/fox.png', '/assets/icons/gorilla.png', '/assets/icons/reindeer.png'];
+const availableIcons = ['/icons/fox.png', '/icons/gorilla.png', '/icons/reindeer.png'];
 let iconIndex = 0;
 
 function getAssigneeIcon(assignee: string) {
-  if (!assignee) return '/assets/icons/user.png';
+  if (!assignee) return '/icons/user.png';
   if (!assigneeIcons[assignee]) {
-    assigneeIcons[assignee] = availableIcons[iconIndex % availableIcons.length];
+    assigneeIcons[assignee] = availableIcons[iconIndex % availableIcons.length]!;
     iconIndex++;
   }
   return assigneeIcons[assignee];
@@ -148,10 +148,9 @@ onMounted(() => {
             width: 80,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             data: (row: any) => {
-              const assignee = findTaskByName(props.plan, row?.row?.label)?.assignee;
+              const assignee = findTaskByName(props.plan, row?.row?.label)?.assignee || 'Unassigned';
               const iconSrc = getAssigneeIcon(assignee);
-              const altText = assignee || 'Unassigned';
-              return `<img src="${iconSrc}" alt="${altText}" title="${altText}" style="width: 24px; height: 24px; border-radius: 50%;" />`;
+              return `<img src="${iconSrc}" alt="${assignee}" title="${assignee}" style="width: 24px; height: 24px; border-radius: 50%;" />`;
             },
             isHTML: true,
             header: {
