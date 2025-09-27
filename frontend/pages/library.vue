@@ -60,11 +60,13 @@
               }}
             </UButton>
           </div>
+          <UAlert color="yellow" class="hidden"/>
+          <UAlert color="red" class="hidden"/>
           <UAlert
             v-if="uploadStatus"
-            :title="uploadStatus.includes('successfully') ? 'Success' : 'Error'"
+            :title="uploadStatusType === 'success' ? 'Success' : (uploadStatusType === 'warning' ? 'Warning' : 'Error')"
             :description="uploadStatus"
-            :color="uploadStatus.includes('successfully') ? 'green' : 'red'"
+            :color="uploadStatusType === 'success' ? 'green' : (uploadStatusType === 'warning' ? 'yellow' : 'red')"
             variant="subtle"
             class="mt-4"
           />
@@ -192,6 +194,7 @@ const columns = [
 const selectedFiles = ref<File[]>([]);
 const isUploading = ref(false);
 const uploadStatus = ref<string>("");
+const uploadStatusType = ref<"success" | "warning" | "error">("success");
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -225,55 +228,80 @@ const uploadFile = async () => {
 
   isUploading.value = true;
   uploadStatus.value = "";
-  const uploadResults: string[] = [];
+  uploadStatusType.value = "success"; // Default to success
 
-  for (const file of selectedFiles.value) {
-    try {
-      const formData = new FormData();
-      formData.append("files", file); // Changed from "file" to "files" to match the backend endpoint
+  const formData = new FormData();
+  selectedFiles.value.forEach(file => {
+    formData.append("files", file);
+  });
 
-      const response = await fetch("http://localhost:8000/process-documents/", {
-        method: "POST",
-        body: formData,
-      });
+  try {
+    const response = await fetch("http://localhost:8000/process-documents/", {
+      method: "POST",
+      body: formData,
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.processed_files && result.processed_files.length > 0) {
-          const processedFile = result.processed_files[0];
-          uploadResults.push(
-            `SUCCESS: '${file.name}' processed (${processedFile.chunks_added} chunks created).`
-          );
+    const result = await response.json();
+
+    const statusMessages: string[] = [];
+    const hasSuccess = result.processed_files && result.processed_files.length > 0;
+    const hasDuplicates = result.duplicates && result.duplicates.length > 0;
+    const hasErrors = result.errors && result.errors.length > 0;
+
+
+    if (response.ok || response.status === 409) { // Handle success and partial success
+      if (hasSuccess) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fileNames = result.processed_files.map((f: any) => `'${f.filename}'`).join(', ');
+        statusMessages.push(`Successfully uploaded and processed: ${fileNames}.`);
+      }
+
+      if (hasDuplicates) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const duplicateNames = result.duplicates.map((d: any) => `'${d.filename}'`).join(', ');
+        statusMessages.push(`These files already exist and were not re-uploaded: ${duplicateNames}.`);
+      }
+
+      if (hasErrors) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const errorDetails = result.errors.map((e: any) => `'${e.filename}': ${e.error}`).join('; ');
+        statusMessages.push(`Errors occurred with some files: ${errorDetails}.`);
+      }
+
+      if (hasSuccess && !hasDuplicates && !hasErrors) {
+        uploadStatusType.value = "success";
+      } else if (hasSuccess && (hasDuplicates || hasErrors)) {
+        uploadStatusType.value = "warning";
+      } else {
+        uploadStatusType.value = "error";
+      }
+
+      uploadStatus.value = statusMessages.join('\n');
+
+    } else { // Handle other errors (400, 500, etc.)
+      uploadStatusType.value = "error";
+      if (result.detail) {
+        if (result.duplicates) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const duplicateNames = result.duplicates.map((d: any) => `'${d.filename}'`).join(', ');
+            uploadStatus.value = `Upload failed. All files are duplicates: ${duplicateNames}`;
         } else {
-          uploadResults.push(`SUCCESS: '${file.name}' processed.`);
+            uploadStatus.value = `Upload failed: ${result.detail.message || result.detail}`;
         }
       } else {
-        const errorData = await response
-          .json()
-          .catch(() => ({ detail: "Unknown error" }));
-        uploadResults.push(
-          `ERROR: Upload failed for '${file.name}': ${errorData.detail || errorData.message}`
-        );
+        uploadStatus.value = "An unknown error occurred during upload.";
       }
-    } catch (error) {
-      uploadResults.push(
-        `ERROR: Network error for '${file.name}': ${
-          error instanceof Error ? error.message : "Unknown"
-        }`
-      );
     }
+  } catch (error) {
+    uploadStatusType.value = "error";
+    uploadStatus.value = `Network error: ${error instanceof Error ? error.message : "Unknown"}`;
+  } finally {
+    isUploading.value = false;
+    selectedFiles.value = [];
+    const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
+    await fetchDocuments();
   }
-
-  isUploading.value = false;
-  uploadStatus.value = uploadResults.join("\n");
-  selectedFiles.value = [];
-  const fileInput = document.getElementById(
-    "dropzone-file"
-  ) as HTMLInputElement;
-  if (fileInput) fileInput.value = "";
-
-  // Always refresh the document list after upload attempts (whether successful or not)
-  await fetchDocuments();
 };
 
 // --- Delete ---

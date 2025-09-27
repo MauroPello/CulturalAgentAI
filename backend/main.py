@@ -42,9 +42,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
-        "http://127.0.0.1:3000", 
-        "http://localhost:3001", 
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
         "http://127.0.0.1:3001"
     ],
     allow_origin_regex=r"^(chrome-extension|moz-extension)://.*",  # Allow browser extensions
@@ -98,13 +98,13 @@ def save_processed_files(data: Dict):
 def add_processed_file(filename: str, file_id: str, file_size: int, chunks_added: int):
     """Add a processed file to the tracking database."""
     db = load_processed_files()
-    
+
     # Check if file already exists by filename (avoid duplicates)
     existing_file = next((f for f in db["files"] if f["filename"] == filename), None)
     if existing_file:
         print(f"File already exists in tracking database: {filename}")
         return False  # File already tracked
-    
+
     new_file = {
         "file_id": file_id,
         "filename": filename,
@@ -113,7 +113,7 @@ def add_processed_file(filename: str, file_id: str, file_size: int, chunks_added
         "chunks_added": chunks_added,
         "status": "completed"
     }
-    
+
     db["files"].append(new_file)
     save_processed_files(db)
     print(f"Added file to tracking database: {filename}")
@@ -123,10 +123,10 @@ def remove_processed_file(file_id: str) -> bool:
     """Remove a processed file from the tracking database."""
     db = load_processed_files()
     original_count = len(db["files"])
-    
+
     # Remove the file with matching file_id
     db["files"] = [f for f in db["files"] if f["file_id"] != file_id]
-    
+
     if len(db["files"]) < original_count:
         save_processed_files(db)
         print(f"Removed file from tracking database: {file_id}")
@@ -145,6 +145,7 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
     """
     processed_files = []
     errors = []
+    duplicates = []
     total_chunks_added = 0
 
     for file in files:
@@ -167,18 +168,18 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
             file_id = str(uuid.uuid4())
             unique_filename = f"{file_id}{file_extension}"
             file_path = UPLOAD_DIR / unique_filename
-            
+
             logger.info(f"Saving file as: {unique_filename}")
 
             contents = await file.read()
             logger.info(f"File size: {len(contents)} bytes")
-            
+
             if len(contents) == 0:
                 error_message = "File is empty or could not be read"
                 logger.error(error_message)
                 errors.append({"filename": file.filename, "error": error_message})
                 continue
-                
+
             with open(file_path, "wb") as buffer:
                 buffer.write(contents)
             logger.info(f"File saved successfully to: {file_path}")
@@ -191,7 +192,7 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
                 logger.error(error_message)
                 errors.append({"filename": file.filename, "error": error_message})
                 continue
-            
+
             logger.info(f"Document text loaded successfully (length: {len(document_text)} characters)")
 
             # Chunk the text
@@ -217,16 +218,17 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
                 "chunks_added": len(chunks)
             })
             logger.info(f"Document processing for {file.filename} completed successfully!")
-            
+
             # Add to processed files tracking database
             file_added = add_processed_file(file.filename, file_id, len(contents), len(chunks))
             if not file_added:
-                # File was a duplicate, add to errors
+                # File was a duplicate, add to duplicates list
                 error_message = f"File '{file.filename}' already exists in the system."
-                print(error_message)
-                errors.append({"filename": file.filename, "error": error_message})
+                logger.warning(error_message)
+                duplicates.append({"filename": file.filename, "error": error_message})
+                # We don't need to remove the vector entries since they were never added for duplicates
                 continue
-                
+
             print(f"Document processing for {file.filename} completed successfully!")
 
         except Exception as e:
@@ -243,16 +245,25 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
                     logger.warning(f"Failed to cleanup temporary file {file_path}: {cleanup_error}")
 
     total_docs = vector_store_instance.get_count()
-    
-    if not processed_files and errors:
-        raise HTTPException(status_code=400, detail={"message": "All files failed to process.", "errors": errors})
+
+    status_code = 200
+    if duplicates:
+        status_code = 409  # Conflict
+
+    if not processed_files and (errors or duplicates):
+        # If nothing was processed and there are only errors or duplicates
+        if not errors and duplicates:
+             raise HTTPException(status_code=409, detail={"message": "All files are duplicates.", "duplicates": duplicates})
+        else:
+             raise HTTPException(status_code=400, detail={"message": "All files failed to process.", "errors": errors, "duplicates": duplicates})
 
     return JSONResponse(
-        status_code=200,
+        status_code=status_code,
         content={
             "message": "Document processing finished.",
             "processed_files": processed_files,
             "errors": errors,
+            "duplicates": duplicates,
             "total_chunks_added": total_chunks_added,
             "total_documents_in_store": total_docs
         }
@@ -265,11 +276,11 @@ async def ask_intelligent(request: IntelligentSearchRequest, query_router: Query
     search, and generate a response.
     """
     start_time = time.time()
-    
+
     final_response, results, analysis, tokens_used = await query_router.process_query(request.query)
-    
+
     execution_time = time.time() - start_time
-    
+
     return IntelligentSearchResponse(
         query=request.query,
         strategy_used=analysis.strategy,
@@ -285,17 +296,17 @@ async def ask_intelligent(request: IntelligentSearchRequest, query_router: Query
 async def chat_completion(request: ChatCompletionRequest):
     try:
         llm_service = LLMService()  # Uses default model from LLMService
-        
+
         # Convert ChatMessage objects to dictionary format expected by LLMService
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-        
+
         # Generate response using the LLM service
         response = await llm_service.generate_with_messages(
             messages=messages,
             max_tokens=request.max_tokens,
             temperature=request.temperature
         )
-        
+
         return JSONResponse(
             status_code=200,
             content={
@@ -312,7 +323,7 @@ async def chat_completion(request: ChatCompletionRequest):
                 "model": llm_service.model  # Use the model from the service
             }
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error in chat completion: {str(e)}")
 
@@ -322,7 +333,7 @@ async def list_uploaded_files():
         # Get processed files from JSON tracking database
         db = load_processed_files()
         files = db.get("files", [])
-        
+
         return JSONResponse(
             status_code=200,
             content={
@@ -331,7 +342,7 @@ async def list_uploaded_files():
                 "total_files": len(files)
             }
         )
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing processed files: {str(e)}")
 
@@ -339,7 +350,7 @@ async def list_uploaded_files():
 async def delete_processed_file(file_id: str):
     try:
         success = remove_processed_file(file_id)
-        
+
         if success:
             return JSONResponse(
                 status_code=200,
@@ -350,7 +361,7 @@ async def delete_processed_file(file_id: str):
             )
         else:
             raise HTTPException(status_code=404, detail=f"File with ID {file_id} not found")
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
 
@@ -395,10 +406,10 @@ def get_planner() -> SwissAIGanttPlanner:
         return create_planner()
     except ValueError as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Configuration error: {str(e)}"
         )
-    
+
 @app.post("/make_plan", response_model=APIGanttResponse)
 async def make_gantt_plan(
     request: ChatHistoryRequest,
@@ -406,26 +417,26 @@ async def make_gantt_plan(
 ):
     """
     Convert a chat history to a business plan summary and then to a structured Gantt chart JSON.
-    
+
     - **messages**: Chat history in standard format (role: "user"/"assistant", content: string)
     - **project_name**: Optional project name to use in the output
     """
     start_time = datetime.now()
-    
+
     try:
         # Validate input
         if not request.messages or len(request.messages) == 0:
             raise HTTPException(status_code=400, detail="Chat history cannot be empty")
-        
+
         # Convert chat history to a format suitable for LLM
         llm_client = get_public_ai_client()
-        
+
         # Create a summary prompt from the chat history
         chat_context = "\n".join([
             f"{'User' if msg.role == 'user' else 'Assistant'}: {msg.content}"
             for msg in request.messages
         ])
-        
+
         summary_prompt = f"""Please analyze the following chat conversation and create a concise business plan summary that captures the key project requirements, goals, and deliverables discussed.
 
 Chat History:
@@ -439,26 +450,26 @@ Please provide a structured business plan summary that includes:
 5. Resources or team requirements discussed
 
 Business Plan Summary:"""
-        
+
         print(f"Generating business plan summary from chat history...")
         business_plan_summary = llm_client.simple_chat(summary_prompt)
         print(f"Business plan summary generated: {business_plan_summary[:200]}...")
-        
+
         # Use the summary to generate Gantt plan
         gantt_data = planner.generate_gantt_plan(
-            description=business_plan_summary, 
+            description=business_plan_summary,
             project_name=request.project_name or "Project from Chat"
         )
         print(gantt_data)
         processing_time = (datetime.now() - start_time).total_seconds()
-        
+
         return APIGanttResponse(
             success=True,
             gantt_plan=gantt_data,
             processing_time_seconds=processing_time,
             timestamp=datetime.now()
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -469,41 +480,41 @@ Business Plan Summary:"""
             processing_time_seconds=processing_time,
             timestamp=datetime.now()
         )
-    
+
 
 @app.post("/convert", response_model=APIGanttResponse)
 async def convert_to_gantt(
-    request: GanttRequest, 
+    request: GanttRequest,
     planner: SwissAIGanttPlanner = Depends(get_planner)
 ):
     """
     Convert a business plan description to a structured Gantt chart JSON.
-    
+
     - **description**: Text describing the business plan or project
     - **project_name**: Optional project name to use in the output
     """
     start_time = datetime.now()
-    
+
     try:
         # Validate input
         if not request.description.strip():
             raise HTTPException(status_code=400, detail="Description cannot be empty")
-        
+
         # Generate Gantt plan
         gantt_data = planner.generate_gantt_plan(
-            description=request.description, 
+            description=request.description,
             project_name=request.project_name
         )
-        
+
         processing_time = (datetime.now() - start_time).total_seconds()
-        
+
         return APIGanttResponse(
             success=True,
             gantt_plan=gantt_data,
             processing_time_seconds=processing_time,
             timestamp=datetime.now()
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
