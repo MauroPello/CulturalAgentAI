@@ -42,6 +42,8 @@ class PublicAIClient:
         if stream:
             payload["stream"] = stream
 
+        print(payload)
+
         try:
             response = requests.post(url, headers=self.headers, json=payload)
             response.raise_for_status()

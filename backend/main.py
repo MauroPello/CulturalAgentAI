@@ -307,7 +307,7 @@ async def chat_completion(request: ChatCompletionRequest):
         print(f"RAG search results: {results}")
 
         if results:
-            context = "Retrieved Information:\n"
+            context = "Use this retrieved information IF AND ONLY IF IT IS RELEVANT, otherwise don't mention it:\n"
             for i, result in enumerate(results, 1):
                 context += f"{i}. [{result.source.upper()}] {result.title or 'Untitled'}\n"
                 context += f"   {result.content[:300]}{'...' if len(result.content) > 300 else ''}\n"
