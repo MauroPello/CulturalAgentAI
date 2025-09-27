@@ -14,42 +14,19 @@ class Task(BaseModel):
     description: str = Field(..., description="Task description")
     start_date: str = Field(..., description="Task start date (YYYY-MM-DD)")
     end_date: str = Field(..., description="Task end date (YYYY-MM-DD)")
-    duration_days: int = Field(..., description="Task duration in days")
     dependencies: List[str] = Field(default=[], description="List of dependent task IDs")
-    priority: str = Field(..., description="Task priority: high, medium, low")
     status: str = Field(..., description="Task status")
-    progress_percentage: int = Field(..., ge=0, le=100, description="Task progress percentage")
-    assigned_to: List[str] = Field(default=[], description="List of assigned team members")
-    resources: List[str] = Field(default=[], description="List of required resources")
-    tags: List[str] = Field(default=[], description="List of task tags")
-    estimated_effort_hours: int = Field(..., ge=0, description="Estimated effort in hours")
-
-
-class Milestone(BaseModel):
-    """Milestone model for Gantt planning."""
-    id: str = Field(..., description="Unique milestone identifier")
-    name: str = Field(..., description="Milestone name")
-    description: str = Field(..., description="Milestone description")
-    due_date: str = Field(..., description="Milestone due date (YYYY-MM-DD)")
-    success_criteria: List[str] = Field(default=[], description="List of success criteria")
+    progress: int = Field(..., ge=0, le=100, description="Task progress percentage")
+    assignee: str = Field(default="", description="Assigned team member")
 
 
 class GanttPlan(BaseModel):
     """Complete Gantt plan model."""
+    id: str = Field(..., description="Unique project identifier")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Plan confidence score")
     project_name: str = Field(..., description="Project name")
     project_description: str = Field(..., description="Project description")
-    project_owner: str = Field(..., description="Project owner")
-    project_start_date: str = Field(..., description="Project start date (YYYY-MM-DD)")
-    project_end_date: str = Field(..., description="Project end date (YYYY-MM-DD)")
-    total_duration_weeks: int = Field(..., ge=1, description="Total project duration in weeks")
     tasks: List[Task] = Field(..., description="List of project tasks")
-    milestones: List[Milestone] = Field(..., description="List of project milestones")
-    phases: List[str] = Field(..., description="List of project phases")
-    budget_estimate: float = Field(..., ge=0, description="Estimated project budget")
-    risk_factors: List[str] = Field(default=[], description="List of identified risk factors")
-    success_metrics: List[str] = Field(default=[], description="List of success metrics")
-    metadata: Dict[str, Any] = Field(default={}, description="Additional project metadata")
 
 
 class GanttResponse(BaseModel):

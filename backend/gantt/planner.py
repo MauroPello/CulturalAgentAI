@@ -10,183 +10,110 @@ import os
 import openai
 from typing import Optional
 from dotenv import load_dotenv
+from gantt.models import GanttPlan
+from pydantic import TypeAdapter, ValidationError
 
 load_dotenv()
 
 class SwissAIGanttPlanner:
     """SwissAI Gantt Planner using Apertus-70B model via Swiss AI Platform."""
-    
+
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the planner with Swiss AI Platform API settings."""
         if api_key is None:
             api_key = os.getenv("SWISS_AI_PLATFORM_API_KEY")
-        
+
         if not api_key:
             raise ValueError("SWISS_AI_PLATFORM_API_KEY environment variable is required or provide api_key parameter")
-        
+
         self.client = openai.OpenAI(
             api_key=api_key,
             base_url="https://api.swisscom.com/layer/swiss-ai-weeks/apertus-70b/v1"
         )
         self.model = "swiss-ai/Apertus-70B"
-    
-    def generate_gantt_plan(self, description: str, project_name: Optional[str] = None) -> dict:
-        """Generate a Gantt plan from a business description."""
-        
-        # Create a detailed prompt with schema information
-        schema_description = """
-Expected JSON Schema Structure:
+        self.gantt_plan_adapter = TypeAdapter(GanttPlan)
 
-GanttResponse:
-- success: boolean
-- gantt_plan: GanttPlan object
-- metadata: dict
+    def _parse_and_validate_gantt_plan(self, json_text: str) -> GanttPlan:
+        """Parse and validate the JSON output against the GanttPlan model."""
+        try:
+            # Clean up the response
+            if json_text.startswith('```json'):
+                json_text = json_text[7:]
+            if json_text.startswith('```'):
+                json_text = json_text[3:]
+            if json_text.endswith('```'):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
 
-GanttPlan:
-- confidence: float (0.0-1.0)
-- project_name: string
-- project_description: string
-- project_owner: string
-- project_start_date: string (YYYY-MM-DD format)
-- project_end_date: string (YYYY-MM-DD format)
-- total_duration_weeks: integer
-- tasks: array of Task objects
-- milestones: array of Milestone objects
-- phases: array of strings
-- budget_estimate: float
-- risk_factors: array of strings
-- success_metrics: array of strings
-- metadata: dict
+            # Validate and parse the JSON using the TypeAdapter
+            validated_plan = self.gantt_plan_adapter.validate_json(json_text)
+            return validated_plan
 
-Task:
-- id: string
-- name: string (not task_name)
-- description: string
-- start_date: string (YYYY-MM-DD format)
-- end_date: string (YYYY-MM-DD format)
-- duration_days: integer
-- dependencies: array of strings (task IDs)
-- priority: string ("high", "medium", "low")
-- status: string
-- progress_percentage: integer (0-100)
-- assigned_to: array of strings
-- resources: array of strings
-- tags: array of strings
-- estimated_effort_hours: integer
+        except ValidationError as e:
+            raise e  # Re-raise validation errors to be handled by the caller
+        except json.JSONDecodeError as e:
+            raise ValidationError.from_exception_data(
+                title="JSONDecodeError",
+                line_errors=[{"error": str(e), "loc": ("body",)}]
+            )
 
-Milestone:
-- id: string
-- name: string (not milestone_name)
-- description: string
-- due_date: string (YYYY-MM-DD format)
-- success_criteria: array of strings
+    def generate_gantt_plan(self, description: str, project_name: Optional[str] = None, max_retries: int = 3) -> dict:
+        """Generate a Gantt plan from a business description with validation and retries."""
 
-IMPORTANT: Use exact field names as specified above. Use 'name' not 'task_name' or 'milestone_name'.
-"""
+        schema_description = self.gantt_plan_adapter.json_schema()
 
         messages = [
             {"role": "system", "content": f"""You are an AI project planner. Given a business plan description, generate a structured Gantt project plan as JSON strictly matching the schema below.
 
-{schema_description}
+{json.dumps(schema_description, indent=2)}
 
 Return ONLY valid JSON matching this exact schema with all required fields. Use the field names exactly as specified."""},
             {"role": "user", "content": f"Create a detailed Gantt project plan for this business description: {description}\n\n{f'Project name should be: {project_name}' if project_name else ''}\n\nGenerate a complete JSON response following the exact schema structure provided in the system message. Ensure all required fields are included with appropriate values."}
         ]
 
-        print(f"Making API call to {self.model}...")
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.0,
-                max_tokens=4000
-            )
-            
-            print("API call successful!")
-        except Exception as e:
-            raise Exception(f"API call failed: {e}")
+        for attempt in range(max_retries):
+            print(f"Making API call to {self.model} (Attempt {attempt + 1}/{max_retries})...")
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=4000,
+                    response_format={"type": "json_object"}
+                )
 
-        # Parse response
-        try:
-            json_text = response.choices[0].message.content
-            
-            # Clean up the response - remove markdown code blocks if present
-            if json_text.startswith('```json'):
-                json_text = json_text[7:]  # Remove ```json
-            if json_text.startswith('```'):
-                json_text = json_text[3:]   # Remove ```
-            if json_text.endswith('```'):
-                json_text = json_text[:-3]  # Remove trailing ```
-            json_text = json_text.strip()
-            
-            data = json.loads(json_text)
-            return data
-            
-        except json.JSONDecodeError as e:
-            raise Exception(f"JSON parsing failed: {e}")
-        except AttributeError as e:
-            raise Exception(f"Unexpected API response format: {e}")
-        except Exception as e:
-            raise Exception(f"Response processing failed: {e}")
-    
-    def modify_gantt_plan(self, existing_plan: dict, prompt: str) -> dict:
-        """Modify an existing Gantt plan based on a prompt."""
-        
-        # Create a detailed prompt with schema information
-        schema_description = """
-Expected JSON Schema Structure:
+                json_text = response.choices[0].message.content
 
-GanttResponse:
-- success: boolean
-- gantt_plan: GanttPlan object
-- metadata: dict
+                # Validate the response
+                validated_plan = self._parse_and_validate_gantt_plan(json_text)
+                print("API call and validation successful!")
+                return validated_plan.model_dump()
 
-GanttPlan:
-- confidence: float (0.0-1.0)
-- project_name: string
-- project_description: string
-- project_owner: string
-- project_start_date: string (YYYY-MM-DD format)
-- project_end_date: string (YYYY-MM-DD format)
-- total_duration_weeks: integer
-- tasks: array of Task objects
-- milestones: array of Milestone objects
-- phases: array of strings
-- budget_estimate: float
-- risk_factors: array of strings
-- success_metrics: array of strings
-- metadata: dict
+            except ValidationError as e:
+                print(f"Validation failed on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    # Add the error to the chat history to guide the next attempt
+                    error_feedback = f"The previous JSON was invalid. Please correct it. Errors:\n{e}"
+                    messages.append({"role": "assistant", "content": json_text})
+                    messages.append({"role": "user", "content": error_feedback})
+                    print("Retrying with corrective feedback...")
+                else:
+                    raise Exception(f"Failed to generate a valid Gantt plan after {max_retries} attempts. Last error: {e}")
 
-Task:
-- id: string
-- name: string (not task_name)
-- description: string
-- start_date: string (YYYY-MM-DD format)
-- end_date: string (YYYY-MM-DD format)
-- duration_days: integer
-- dependencies: array of strings (task IDs)
-- priority: string ("high", "medium", "low")
-- status: string
-- progress_percentage: integer (0-100)
-- assigned_to: array of strings
-- resources: array of strings
-- tags: array of strings
-- estimated_effort_hours: integer
+            except Exception as e:
+                raise Exception(f"API call or processing failed: {e}")
 
-Milestone:
-- id: string
-- name: string (not milestone_name)
-- description: string
-- due_date: string (YYYY-MM-DD format)
-- success_criteria: array of strings
+        raise Exception("Failed to generate a valid Gantt plan.")
 
-IMPORTANT: Use exact field names as specified above. Use 'name' not 'task_name' or 'milestone_name'.
-"""
+    def modify_gantt_plan(self, existing_plan: dict, prompt: str, max_retries: int = 3) -> dict:
+        """Modify an existing Gantt plan based on a prompt with validation and retries."""
+
+        schema_description = self.gantt_plan_adapter.json_schema()
 
         messages = [
             {"role": "system", "content": f"""You are an AI project planner. Given an existing Gantt project plan and modification instructions, generate an updated Gantt project plan as JSON strictly matching the schema below.
 
-{schema_description}
+{json.dumps(schema_description, indent=2)}
 
 Return ONLY valid JSON matching this exact schema with all required fields. Use the field names exactly as specified. Make sure to preserve the existing structure and data while applying the requested modifications."""},
             {"role": "user", "content": f"""Here is the existing Gantt project plan:
@@ -197,41 +124,39 @@ Please modify this plan according to these instructions: {prompt}
 Generate the complete updated JSON response following the exact schema structure provided in the system message. Ensure all required fields are included and the modifications are properly applied while maintaining data consistency."""}
         ]
 
-        print(f"Making API call to {self.model} for plan modification...")
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.1,  # Slightly higher temperature for modifications
-                max_tokens=4000
-            )
-            
-            print("API call successful!")
-        except Exception as e:
-            raise Exception(f"API call failed: {e}")
+        for attempt in range(max_retries):
+            print(f"Making API call to {self.model} for plan modification (Attempt {attempt + 1}/{max_retries})...")
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.1,
+                    max_tokens=4000,
+                    response_format={"type": "json_object"}
+                )
 
-        # Parse response
-        try:
-            json_text = response.choices[0].message.content
-            
-            # Clean up the response - remove markdown code blocks if present
-            if json_text.startswith('```json'):
-                json_text = json_text[7:]  # Remove ```json
-            if json_text.startswith('```'):
-                json_text = json_text[3:]   # Remove ```
-            if json_text.endswith('```'):
-                json_text = json_text[:-3]  # Remove trailing ```
-            json_text = json_text.strip()
-            
-            data = json.loads(json_text)
-            return data
-            
-        except json.JSONDecodeError as e:
-            raise Exception(f"JSON parsing failed: {e}")
-        except AttributeError as e:
-            raise Exception(f"Unexpected API response format: {e}")
-        except Exception as e:
-            raise Exception(f"Response processing failed: {e}")
+                json_text = response.choices[0].message.content
+
+                # Validate the response
+                validated_plan = self._parse_and_validate_gantt_plan(json_text)
+                print("API call and validation successful!")
+                return validated_plan.model_dump()
+
+            except ValidationError as e:
+                print(f"Validation failed on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    # Add error feedback for the next attempt
+                    error_feedback = f"The previous JSON was invalid. Please correct it. Errors:\n{e}"
+                    messages.append({"role": "assistant", "content": json_text})
+                    messages.append({"role": "user", "content": error_feedback})
+                    print("Retrying with corrective feedback...")
+                else:
+                    raise Exception(f"Failed to generate a valid modified Gantt plan after {max_retries} attempts. Last error: {e}")
+
+            except Exception as e:
+                raise Exception(f"API call or processing failed: {e}")
+
+        raise Exception("Failed to generate a valid modified Gantt plan.")
 
 
 def create_planner(api_key: Optional[str] = None) -> SwissAIGanttPlanner:

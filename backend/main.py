@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 import uuid
 import logging
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from services.rag_service import RAGService
 from dotenv import load_dotenv
 
@@ -314,7 +314,7 @@ async def chat_completion(request: ChatCompletionRequest):
                 if result.url:
                     context += f"   Source: {result.url}\n"
                 context += "\n"
-            
+
             # Append context to the last message content
             if messages:
                 messages[-1]["content"] += f"\n\n{context}"
@@ -489,6 +489,16 @@ Business Plan Summary:"""
             timestamp=datetime.now()
         )
 
+    except ValidationError as e:
+        processing_time = (datetime.now() - start_time).total_seconds()
+        error_detail = {
+            "message": "Failed to generate a valid Gantt plan due to schema validation errors.",
+            "details": e.errors()
+        }
+        raise HTTPException(
+            status_code=422,
+            detail=error_detail
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -552,35 +562,35 @@ async def modify_gantt_plan(
 ):
     """
     Modify an existing Gantt plan based on a prompt/instruction.
-    
+
     - **gantt_plan**: Existing Gantt plan data to modify (as dict)
     - **prompt**: Instructions for how to modify the plan
     """
     start_time = datetime.now()
-    
+
     try:
         # Validate input
         if not request.prompt.strip():
             raise HTTPException(status_code=400, detail="Modification prompt cannot be empty")
-        
+
         if not request.gantt_plan:
             raise HTTPException(status_code=400, detail="Gantt plan data cannot be empty")
-        
+
         # Modify the Gantt plan using the planner
         modified_gantt_data = planner.modify_gantt_plan(
             existing_plan=request.gantt_plan,
             prompt=request.prompt
         )
-        
+
         processing_time = (datetime.now() - start_time).total_seconds()
-        
+
         return APIGanttResponse(
             success=True,
             gantt_plan=modified_gantt_data,
             processing_time_seconds=processing_time,
             timestamp=datetime.now()
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
