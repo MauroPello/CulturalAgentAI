@@ -50,8 +50,11 @@ class PublicAIClient:
             print(f"Error making API request: {e}")
             raise
 
-    def simple_chat(self, user_message: str, model: str = "swiss-ai/apertus-8b-instruct") -> str:
-        messages = [{"role": "user", "content": user_message}]
+    def simple_chat(self, user_message: str, model: str = "swiss-ai/apertus-8b-instruct", system_prompt: Optional[str] = None) -> str:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_message})
         response = self.chat_completion(messages, model)
         
         if "choices" in response and len(response["choices"]) > 0:

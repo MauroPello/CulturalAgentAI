@@ -367,9 +367,13 @@ class ChatHistoryRequest(BaseModel):
 async def cultural_align_text(request: CulturalAlignRequest):
     try:
         llm_client = get_public_ai_client()
+
+        system_prompt = "You are a helpful assistant that improves text to align with specific cultural values and norms."
+
         prompt = (
-            f"Create a version of the following text that is more aligned with the culture {request.target_culture}. "
-            f"It should be in the language '{request.language}'.\n\n"
+            f"Create a version of the following text that is fluent and natural in this language: {request.language}. "
+            f"Make sure the answer respects the values and norms of this culture:'{request.target_culture}'.\n\n"
+            f"DO NOT SIMPLY TRANSLATE THE TEXT, but adapt it culturally and contextually.\n\n"
             f"TEXT:\n{request.text}\n\n"
             "BETTER VERSION:"
         )
