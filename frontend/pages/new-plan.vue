@@ -164,9 +164,10 @@ async function confirmBuildPlan() {
             <!-- Loading indicator -->
             <div v-if="isLoading" class="flex w-full justify-start">
               <div class="max-w-xs break-words rounded-lg p-3 bg-gray-200 text-gray-900">
-                <div class="flex items-center space-x-2">
-                  <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
-                  <span>AI is thinking...</span>
+                <div class="flex space-x-1">
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                  <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                 </div>
               </div>
             </div>
@@ -246,25 +247,12 @@ async function confirmBuildPlan() {
           </div>
           <p v-else>Are you sure you want to create a new plan based on your conversation?</p>
 
-          <template #footer>
+          <template #footer v-if="!isLoading">
             <div class="flex justify-end gap-2">
-              <UButton 
-                color="gray" 
-                variant="ghost" 
-                size="xl" 
-                :disabled="isLoading"
-                @click="isModalOpen = false"
+              <UButton color="gray" variant="ghost" size="xl" @click="isModalOpen = false"
+                >Cancel</UButton
               >
-                Cancel
-              </UButton>
-              <UButton 
-                size="xl" 
-                :loading="isLoading"
-                :disabled="isLoading"
-                @click="confirmBuildPlan"
-              >
-                {{ isLoading ? 'Generating Plan...' : 'Create Plan' }}
-              </UButton>
+              <UButton size="xl" @click="confirmBuildPlan">Create Plan</UButton>
             </div>
           </template>
         </UCard>

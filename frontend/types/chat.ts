@@ -22,3 +22,30 @@ export interface Chat {
   title: string
   messages: Message[]
 }
+
+export interface GanttPlanResponse {
+  success: boolean
+  gantt_plan?: {
+    project_name: string
+    project_description: string
+    tasks: Array<{
+      id: string
+      name: string
+      start_date: string
+      end_date: string
+      duration: number
+      dependencies: string[]
+      progress: number
+      resource: string
+    }>
+    milestones: Array<{
+      id: string
+      name: string
+      date: string
+      description: string
+    }>
+  }
+  error?: string
+  processing_time_seconds: number
+  timestamp: string
+}
