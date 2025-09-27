@@ -12,6 +12,15 @@
       </template>
 
       <div class="space-y-6">
+        <!-- Description -->
+        <div class="flex items-start">
+          <UIcon name="i-heroicons-bars-3-bottom-left" class="h-6 w-6 text-gray-500 mr-4 mt-1" />
+          <div>
+            <p class="text-sm font-medium text-gray-500">Description</p>
+            <p class="text-gray-800">{{ task.description || 'No description provided.' }}</p>
+          </div>
+        </div>
+
         <!-- Status -->
         <div class="flex items-center">
           <UIcon name="i-heroicons-information-circle" class="h-6 w-6 text-gray-500 mr-4" />

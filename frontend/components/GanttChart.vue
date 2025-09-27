@@ -105,7 +105,8 @@ onMounted(() => {
           [GSTC.api.GSTCID('start_date')]: {
             id: GSTC.api.GSTCID('start_date'),
             width: 120,
-            data: ({ item }: { item: Item }) => (item && item.time ? GSTC.api.date(item.time.start).format('YYYY-MM-DD') : ''),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data: (row: any) => (findTaskByName(props.plan, row?.row?.label)?.start_date),
             header: {
               content: 'Start Date',
             },
@@ -113,7 +114,8 @@ onMounted(() => {
           [GSTC.api.GSTCID('end_date')]: {
             id: GSTC.api.GSTCID('end_date'),
             width: 120,
-            data: ({ item }: { item: Item }) => (item && item.time ? GSTC.api.date(item.time.end).format('YYYY-MM-DD') : ''),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data: (row: any) => (findTaskByName(props.plan, row?.row?.label)?.end_date),
             header: {
               content: 'End Date',
             },
@@ -121,7 +123,8 @@ onMounted(() => {
           [GSTC.api.GSTCID('progress')]: {
             id: GSTC.api.GSTCID('progress'),
             width: 80,
-            data: 'progress',
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data: (row: any) => (String(findTaskByName(props.plan, row?.row?.label)?.progress ?? 0) + "%"),
             header: {
               content: 'Progress',
             },

@@ -1,4 +1,4 @@
-import type { Plan } from "~/types/plan";
+import type { Plan, Task } from "~/types/plan";
 
 const STORAGE_KEY = "gantt-plans";
 
@@ -59,3 +59,8 @@ export const usePlans = () => {
     createPlan,
   };
 };
+
+// Added function to find a task by its name within a plan
+export function findTaskByName(plan: Plan, name: string): Task | undefined {
+  return plan.tasks?.find(task => task.name === name);
+}
