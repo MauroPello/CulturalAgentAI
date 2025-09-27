@@ -4,7 +4,7 @@
 
 # Cultura - Cultural AI Agent
 
-An AI-powered platform for small and medium-sized businesses to expand into foreign markets with confidence. Built with the Swiis Apertus LLM for **multicultural** intelligence, **multilingual** understanding, and **transparent**, **self-hostable** AI consultation services.
+An AI-powered platform for small and medium-sized businesses to expand into foreign markets with confidence. Built with the Swiss Apertus LLM for **multicultural** intelligence, **multilingual** understanding, and **transparent**, **self-hostable** AI consultation services.
 
 ## 🌟 Key Features
 
@@ -56,3 +56,5 @@ Our solutions is composed of 2+1 **amazing** parts:
    ```bash
    docker-compose down
    ```
+
+**Note**: While we fine-tuned the Apertus model for function calling, this fine-tuned version is not used in the app. The decision was made due to token limitations and associated costs. In an ideal scenario, we would integrate the fine-tuned model directly into the app, as it would eliminate the need for a prompting approach to guide the model on whether to perform RAG, web search, or other tasks. This would result in a more efficient and streamlined process.

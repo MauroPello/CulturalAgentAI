@@ -32,6 +32,19 @@ const gstcEl = ref<HTMLDivElement | null>(null);
 const selectedTask = ref<Task | null>(null);
 const isModalVisible = ref(false);
 
+const assigneeIcons: { [key: string]: string } = {};
+const availableIcons = ['/assets/icons/fox.png', '/assets/icons/gorilla.png', '/assets/icons/reindeer.png'];
+let iconIndex = 0;
+
+function getAssigneeIcon(assignee: string) {
+  if (!assignee) return '/assets/icons/user.png';
+  if (!assigneeIcons[assignee]) {
+    assigneeIcons[assignee] = availableIcons[iconIndex % availableIcons.length];
+    iconIndex++;
+  }
+  return assigneeIcons[assignee];
+}
+
 // helper functions
 function generateRowsFromData(): { [key: string]: Row } {
   if (!props.plan) return {};
@@ -61,6 +74,7 @@ function generateItemsFromData(): { [key: string]: Item } {
       },
       progress: task.progress,
       dependencies: task.dependencies.map(depId => GSTC.api.GSTCID(depId)),
+      assignee: task.assignee,
     };
   });
   return items;
@@ -127,6 +141,21 @@ onMounted(() => {
             data: (row: any) => (String(findTaskByName(props.plan, row?.row?.label)?.progress ?? 0) + "%"),
             header: {
               content: 'Progress',
+            },
+          },
+          [GSTC.api.GSTCID('assignee')]: {
+            id: GSTC.api.GSTCID('assignee'),
+            width: 80,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            data: (row: any) => {
+              const assignee = findTaskByName(props.plan, row?.row?.label)?.assignee;
+              const iconSrc = getAssigneeIcon(assignee);
+              const altText = assignee || 'Unassigned';
+              return `<img src="${iconSrc}" alt="${altText}" title="${altText}" style="width: 24px; height: 24px; border-radius: 50%;" />`;
+            },
+            isHTML: true,
+            header: {
+              content: 'Assignee',
             },
           },
         },
