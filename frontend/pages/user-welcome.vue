@@ -168,11 +168,6 @@ const cards = [
     to: '/new-plan',
   },
   {
-    title: 'Review Chats',
-    description: 'Review chats and flag messages that may not be appropriate for the language it\'s being spoken in.',
-    to: '/chat-review',
-  },
-  {
     title: 'AI Chat',
     description: 'Interact with the AI to get insights and suggestions.',
     to: '/ai-chat',
