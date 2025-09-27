@@ -66,6 +66,12 @@ class GanttRequest(BaseModel):
     project_name: Optional[str] = Field(None, description="Optional project name")
 
 
+class ModifyGanttRequest(BaseModel):
+    """API request model for modifying an existing Gantt plan."""
+    gantt_plan: Dict[str, Any] = Field(..., description="Existing Gantt plan data to modify")
+    prompt: str = Field(..., min_length=5, description="Modification instructions or prompt")
+
+
 class APIGanttResponse(BaseModel):
     """API response model."""
     success: bool = Field(..., description="Request success status")

@@ -33,6 +33,13 @@ export const usePlans = () => {
     plans.value = plans.value.filter((p) => p.id !== id);
   };
 
+  const updatePlan = (id: string, updatedPlan: Plan) => {
+    const index = plans.value.findIndex((p) => p.id === id);
+    if (index !== -1) {
+      plans.value[index] = { ...plans.value[index], ...updatedPlan };
+    }
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createPlan = (projectName: string, projectDescription: string, ganttPlan?: any) => {
     const newPlan: Plan = {
@@ -49,6 +56,7 @@ export const usePlans = () => {
     plans,
     getPlanById,
     deletePlan,
+    updatePlan,
     createPlan,
   };
 };

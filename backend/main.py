@@ -29,7 +29,7 @@ from services.llm_services import get_public_ai_client
 from services.llm_services import LLMService
 
 from gantt.planner import SwissAIGanttPlanner, create_planner
-from gantt.models import GanttRequest, APIGanttResponse
+from gantt.models import GanttRequest, APIGanttResponse, ModifyGanttRequest
 
 load_dotenv()
 
@@ -534,6 +534,53 @@ async def convert_to_gantt(
             timestamp=datetime.now()
         )
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        processing_time = (datetime.now() - start_time).total_seconds()
+        return APIGanttResponse(
+            success=False,
+            error=str(e),
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
+
+@app.post("/modify_gantt", response_model=APIGanttResponse)
+async def modify_gantt_plan(
+    request: ModifyGanttRequest,
+    planner: SwissAIGanttPlanner = Depends(get_planner)
+):
+    """
+    Modify an existing Gantt plan based on a prompt/instruction.
+    
+    - **gantt_plan**: Existing Gantt plan data to modify (as dict)
+    - **prompt**: Instructions for how to modify the plan
+    """
+    start_time = datetime.now()
+    
+    try:
+        # Validate input
+        if not request.prompt.strip():
+            raise HTTPException(status_code=400, detail="Modification prompt cannot be empty")
+        
+        if not request.gantt_plan:
+            raise HTTPException(status_code=400, detail="Gantt plan data cannot be empty")
+        
+        # Modify the Gantt plan using the planner
+        modified_gantt_data = planner.modify_gantt_plan(
+            existing_plan=request.gantt_plan,
+            prompt=request.prompt
+        )
+        
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        return APIGanttResponse(
+            success=True,
+            gantt_plan=modified_gantt_data,
+            processing_time_seconds=processing_time,
+            timestamp=datetime.now()
+        )
+        
     except HTTPException:
         raise
     except Exception as e:

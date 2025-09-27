@@ -1,0 +1,133 @@
+{
+  "success": true,
+  "gantt_plan": {
+    "success": true,
+    "gantt_plan": {
+      "confidence": 0.9,
+      "project_name": "Sample Project",
+      "project_description": "A sample project for testing",
+      "project_owner": "Project Manager",
+      "project_start_date": "2025-01-01",
+      "project_end_date": "2025-03-31",
+      "total_duration_weeks": 12,
+      "tasks": [
+        {
+          "id": "task-1",
+          "name": "Task 1",
+          "description": "First task description",
+          "start_date": "2025-01-01",
+          "end_date": "2025-01-15",
+          "duration_days": 14,
+          "dependencies": [],
+          "priority": "high",
+          "status": "not_started",
+          "progress_percentage": 0,
+          "assigned_to": [
+            "Developer 1"
+          ],
+          "resources": [
+            "Computer",
+            "IDE"
+          ],
+          "tags": [
+            "development"
+          ],
+          "estimated_effort_hours": 80
+        },
+        {
+          "id": "task-2",
+          "name": "Task 2",
+          "description": "Second task description",
+          "start_date": "2025-01-16",
+          "end_date": "2025-02-15",
+          "duration_days": 30,
+          "dependencies": [
+            "task-1"
+          ],
+          "priority": "medium",
+          "status": "not_started",
+          "progress_percentage": 0,
+          "assigned_to": [
+            "Developer 2"
+          ],
+          "resources": [
+            "Computer",
+            "Database"
+          ],
+          "tags": [
+            "database",
+            "backend"
+          ],
+          "estimated_effort_hours": 120
+        },
+        {
+          "id": "task-3",
+          "name": "Testing Phase",
+          "description": "Testing and validation of the project",
+          "start_date": "2025-02-16",
+          "end_date": "2025-03-02",
+          "duration_days": 14,
+          "dependencies": [
+            "task-2"
+          ],
+          "priority": "medium",
+          "status": "not_started",
+          "progress_percentage": 0,
+          "assigned_to": [
+            "QA Engineer 1"
+          ],
+          "resources": [
+            "Testing Environment",
+            "Testing Tools"
+          ],
+          "tags": [
+            "testing",
+            "quality_assurance"
+          ],
+          "estimated_effort_hours": 80
+        }
+      ],
+      "milestones": [
+        {
+          "id": "milestone-1",
+          "name": "First Milestone",
+          "description": "Completion of first phase",
+          "due_date": "2025-02-15",
+          "success_criteria": [
+            "Task 1 completed",
+            "Task 2 completed"
+          ]
+        },
+        {
+          "id": "milestone-2",
+          "name": "Testing Completion",
+          "description": "Completion of testing phase",
+          "due_date": "2025-03-02",
+          "success_criteria": [
+            "Task 3 completed"
+          ]
+        }
+      ],
+      "phases": [
+        "Planning",
+        "Development",
+        "Testing"
+      ],
+      "budget_estimate": 50000.0,
+      "risk_factors": [
+        "Technical complexity",
+        "Timeline constraints"
+      ],
+      "success_metrics": [
+        "On-time delivery",
+        "Budget adherence"
+      ],
+      "metadata": {}
+    },
+    "metadata": {}
+  },
+  "error": null,
+  "processing_time_seconds": 15.608698,
+  "api_version": "1.0.0",
+  "timestamp": "2025-09-27T09:45:22.987039"
+}
