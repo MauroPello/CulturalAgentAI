@@ -8,6 +8,7 @@ import uuid
 import logging
 import json
 from pydantic import BaseModel
+from services.rag_service import RAGService
 from dotenv import load_dotenv
 
 # Configure logging
@@ -299,6 +300,24 @@ async def chat_completion(request: ChatCompletionRequest):
 
         # Convert ChatMessage objects to dictionary format expected by LLMService
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
+        rag_service = RAGService()
+        query = messages[-1]["content"] if messages else ""
+        results = await rag_service.search(query)
+        print(f"RAG search results: {results}")
+
+        if results:
+            context = "Retrieved Information:\n"
+            for i, result in enumerate(results, 1):
+                context += f"{i}. [{result.source.upper()}] {result.title or 'Untitled'}\n"
+                context += f"   {result.content[:300]}{'...' if len(result.content) > 300 else ''}\n"
+                if result.url:
+                    context += f"   Source: {result.url}\n"
+                context += "\n"
+            
+            # Append context to the last message content
+            if messages:
+                messages[-1]["content"] += f"\n\n{context}"
 
         # Generate response using the LLM service
         response = await llm_service.generate_with_messages(
