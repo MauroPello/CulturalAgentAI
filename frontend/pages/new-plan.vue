@@ -24,33 +24,95 @@ const isModalOpen = ref(false);
 
 const { createPlan } = usePlans();
 
-function sendMessage() {
-  if (newMessage.value.trim() === "") return;
+const isSendingMessage = ref(false);
 
+async function sendMessage() {
+  if (newMessage.value.trim() === "" || isSendingMessage.value) return;
+
+  const messageText = newMessage.value;
+  newMessage.value = "";
+  isSendingMessage.value = true;
+
+  // Add user message
   messages.value.push({
     id: messages.value.length + 1,
-    text: newMessage.value,
+    text: messageText,
     isUser: true,
   });
 
-  // Simulate a response from the LLM
-  setTimeout(() => {
+  try {
+    const { ask } = useApiCall();
+    
+    // Build conversation context for planning
+    const conversationHistory = messages.value
+      .slice(0, -1) // Exclude the message we just added
+      .map((msg) => `${msg.isUser ? "Human" : "AI"}: ${msg.text}`)
+      .join("\n");
+
+    const planningContext = conversationHistory
+      ? `Previous conversation:\n${conversationHistory}\n\nCurrent question: ${messageText}\n\nNote: You are an AI expert in foreign market expansion planning. Help the user develop a comprehensive business expansion plan.`
+      : `${messageText}\n\nNote: You are an AI expert in foreign market expansion planning. Help the user develop a comprehensive business expansion plan.`;
+
+    const response = await ask(planningContext);
+
+    // Add AI response
     messages.value.push({
       id: messages.value.length + 1,
-      text: "That's a great choice. Let's start by analyzing the market size and growth potential in that country.",
+      text: response.answer,
       isUser: false,
     });
-  }, 1000);
 
-  newMessage.value = "";
+  } catch (error) {
+    console.error("Error getting AI response:", error);
+    messages.value.push({
+      id: messages.value.length + 1,
+      text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+      isUser: false,
+    });
+  } finally {
+    isSendingMessage.value = false;
+  }
 }
 
-function confirmBuildPlan() {
-  const newPlan = createPlan(
-    "New Market Expansion Plan",
-    "A plan to expand the business into a new country."
-  );
-  navigateTo(`/plans/${newPlan.id}`);
+const isCreatingPlan = ref(false);
+const planCreationError = ref<string | null>(null);
+
+async function confirmBuildPlan() {
+  isCreatingPlan.value = true;
+  planCreationError.value = null;
+  
+  try {
+    const { generateGantt } = useApiCall();
+    
+    // Extract the conversation to use as description for the Gantt chart
+    const conversationText = messages.value
+      .map(msg => `${msg.isUser ? 'User' : 'AI'}: ${msg.text}`)
+      .join('\n');
+    
+    // Call the backend to generate Gantt chart
+    const ganttResponse = await generateGantt(conversationText, "Market Expansion Plan");
+    
+    if (ganttResponse.success && ganttResponse.gantt_plan) {
+      // Create plan with the backend-generated data
+      const newPlan = createPlan(
+        ganttResponse.gantt_plan.project_name || "Market Expansion Plan",
+        conversationText
+      );
+      
+      // Update the plan with the backend data
+      Object.assign(newPlan, ganttResponse.gantt_plan);
+      
+      isModalOpen.value = false;
+      navigateTo(`/plans/${newPlan.id}`);
+    } else {
+      throw new Error(ganttResponse.error || 'Failed to generate plan');
+    }
+  } catch (error) {
+    planCreationError.value = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error creating plan:', error);
+  } finally {
+    isCreatingPlan.value = false;
+  }
 }
 </script>
 
@@ -101,14 +163,17 @@ function confirmBuildPlan() {
                 size="xl"
                 class="flex-1 text-base"
                 placeholder="Type a message..."
+                :disabled="isSendingMessage"
                 @keyup.enter="sendMessage"
               />
               <UButton
                 size="xl"
-                label="Send"
+                :label="isSendingMessage ? 'Sending...' : 'Send'"
                 variant="soft"
                 icon="i-heroicons-paper-airplane"
                 class="ml-2"
+                :loading="isSendingMessage"
+                :disabled="isSendingMessage || newMessage.trim() === ''"
                 @click="sendMessage"
               />
               <UButton
@@ -160,14 +225,47 @@ function confirmBuildPlan() {
             </div>
           </template>
 
-          <p>Are you sure you want to create a new plan?</p>
+          <div>
+            <p>Are you sure you want to create a new plan?</p>
+            <p class="text-sm text-gray-500 mt-2">
+              This will analyze your conversation and generate a comprehensive Gantt chart.
+            </p>
+            
+            <UAlert
+              v-if="planCreationError"
+              title="Error Creating Plan"
+              :description="planCreationError"
+              color="red"
+              variant="subtle"
+              class="mt-3"
+              :close-button="{
+                icon: 'i-heroicons-x-mark-20-solid',
+                color: 'red',
+                variant: 'ghost',
+              }"
+              @close="planCreationError = null"
+            />
+          </div>
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton color="gray" variant="ghost" size="xl" @click="isModalOpen = false"
-                >Cancel</UButton
+              <UButton 
+                color="gray" 
+                variant="ghost" 
+                size="xl" 
+                :disabled="isCreatingPlan"
+                @click="isModalOpen = false"
               >
-              <UButton size="xl" @click="confirmBuildPlan">Create Plan</UButton>
+                Cancel
+              </UButton>
+              <UButton 
+                size="xl" 
+                :loading="isCreatingPlan"
+                :disabled="isCreatingPlan"
+                @click="confirmBuildPlan"
+              >
+                {{ isCreatingPlan ? 'Creating Plan...' : 'Create Plan' }}
+              </UButton>
             </div>
           </template>
         </UCard>

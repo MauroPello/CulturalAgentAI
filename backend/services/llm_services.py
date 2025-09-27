@@ -14,13 +14,16 @@ class PublicAIClient:
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
-            "User-Agent": "IntelligentSearchAPI/1.0"
         }
+        
+        # Debug: Check if API key looks valid
+        if not api_key.startswith(('zpka_', 'sk-')):
+            print(f"⚠️  Warning: API key format doesn't match expected patterns. Key starts with: {api_key[:10]}...")
 
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
-        model: str = "swiss-ai/apertus-8b-instruct",
+        model: str = "swiss-ai/apertus-8b-instruct",  # MANDATORY: Must use apertus
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
@@ -43,21 +46,47 @@ class PublicAIClient:
             payload["stream"] = stream
 
         try:
-            response = requests.post(url, headers=self.headers, json=payload)
+            print(f"🔄 Making API request to: {url}")
+            print(f"📦 Model: {model}")
+            print(f"📝 Messages: {len(messages)} messages")
+            print(f"🔑 API Key starts with: {self.api_key[:15]}...")
+            
+            response = requests.post(url, headers=self.headers, json=payload, timeout=120)
+            
+            print(f"📊 Response status: {response.status_code}")
+            
+            if not response.ok:
+                print(f"❌ Error response: {response.text}")
+                try:
+                    error_json = response.json()
+                    print(f"📄 Error details: {error_json}")
+                except:
+                    pass
+                
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            print(f"✅ API call successful")
+            return result
+            
         except requests.RequestException as e:
-            print(f"Error making API request: {e}")
+            print(f"❌ Error making API request: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"📄 Error response body: {e.response.text}")
             raise
 
     def simple_chat(self, user_message: str, model: str = "swiss-ai/apertus-8b-instruct") -> str:
         messages = [{"role": "user", "content": user_message}]
-        response = self.chat_completion(messages, model)
-        
-        if "choices" in response and len(response["choices"]) > 0:
-            return response["choices"][0]["message"]["content"]
-        else:
-            raise ValueError("Unexpected response format")
+        try:
+            response = self.chat_completion(messages, model)
+            
+            if "choices" in response and len(response["choices"]) > 0:
+                return response["choices"][0]["message"]["content"]
+            else:
+                print(f"⚠️  Unexpected response format: {response}")
+                raise ValueError("Unexpected response format")
+        except Exception as e:
+            print(f"❌ Simple chat error: {e}")
+            raise
         
 def get_public_ai_client() -> PublicAIClient:
     return PublicAIClient()

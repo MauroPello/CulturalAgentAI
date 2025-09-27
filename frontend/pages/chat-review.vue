@@ -6,8 +6,9 @@
           <h1 class="text-2xl font-bold">Review Chat</h1>
         </template>
         <p class="mb-4">
-          Paste a collection of messages and emails to get an LLM evaluation on
-          their cultural and linguistic appropriateness.
+          Paste a collection of messages and emails to get an AI evaluation of their cultural appropriateness, 
+          language usage, and contextual sensitivity. The AI will analyze the content for cultural respect, 
+          appropriate tone, and provide suggestions for improvement.
         </p>
         <div class="flex flex-col items-start">
           <UTextarea
@@ -53,10 +54,24 @@ const analyzeText = async () => {
   error.value = null;
 
   try {
+    // Create a structured prompt that instructs the LLM to review cultural appropriateness
+    const reviewPrompt = `Please analyze the following text for cultural appropriateness, considering language use, cultural context, and setting. Pay special attention to:
+
+1. Cultural sensitivity and respect for different backgrounds
+2. Appropriate language for the intended audience and setting
+3. Potential cultural misunderstandings or offensive content
+4. Suggestions for more culturally appropriate alternatives if needed
+5. Overall tone and professionalism considering the cultural context
+
+Please provide a detailed analysis with specific recommendations.
+
+Text to review:
+${textInput.value}`;
+
     const response = await $fetch<{ answer: string }>("http://127.0.0.1:8000/ask", {
       method: "POST",
       body: {
-        query: textInput.value,
+        query: reviewPrompt,
       },
     });
     analysisResult.value = response.answer;

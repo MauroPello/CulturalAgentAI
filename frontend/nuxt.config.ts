@@ -14,6 +14,19 @@ export default defineNuxtConfig({
     "@nuxt/eslint",
     "@nuxtjs/color-mode",
   ],
+  runtimeConfig: {
+    // Private keys (only available on server-side)
+    apiSecret: process.env.API_SECRET,
+    // Public keys (exposed to client-side) 
+    public: {
+      apiBase: process.env.API_BASE_URL || 'http://localhost:8000'
+    }
+  },
+  vite: {
+    define: {
+      'import.meta.env.VITE_API_BASE': JSON.stringify(process.env.API_BASE_URL || 'http://localhost:8000')
+    }
+  },
   components: ["~/components"],
   robots: robotsConfig,
   site: {

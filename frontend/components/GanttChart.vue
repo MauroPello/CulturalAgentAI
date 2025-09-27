@@ -1,9 +1,228 @@
 <template>
-  <div ref="gstcEl" class="gstc-wrapper" />
+  <div class="gantt-container">
+    <!-- Project Header with Collapsible Description -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">{{ plan?.project_name || 'Project Plan' }}</h2>
+        <div class="flex items-center gap-2">
+          <!-- Zoom Controls -->
+          <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <UButton 
+              size="xs" 
+              variant="ghost" 
+              icon="i-heroicons-minus" 
+              @click="zoomOut"
+              :disabled="currentZoomLevel <= 0"
+              title="Zoom Out"
+            />
+            <span class="text-xs px-2 py-1 text-gray-600 dark:text-gray-400">
+              {{ zoomLevels[currentZoomLevel].label }}
+            </span>
+            <UButton 
+              size="xs" 
+              variant="ghost" 
+              icon="i-heroicons-plus" 
+              @click="zoomIn"
+              :disabled="currentZoomLevel >= zoomLevels.length - 1"
+              title="Zoom In"
+            />
+          </div>
+          <!-- Description Toggle -->
+          <UButton
+            size="sm"
+            variant="outline"
+            :icon="showDescription ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            @click="showDescription = !showDescription"
+          >
+            {{ showDescription ? 'Hide' : 'Show' }} Description
+          </UButton>
+        </div>
+      </div>
+      
+      <!-- Collapsible Description -->
+      <div v-if="showDescription" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4">
+        <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+          {{ plan?.project_description || 'No description available.' }}
+        </p>
+        <div v-if="plan" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+          <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-400">Start Date:</span>
+            <p>{{ formatDate(plan.project_start_date) }}</p>
+          </div>
+          <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-400">End Date:</span>
+            <p>{{ formatDate(plan.project_end_date) }}</p>
+          </div>
+          <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-400">Duration:</span>
+            <p>{{ plan.total_duration_weeks }} weeks</p>
+          </div>
+          <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-400">Tasks:</span>
+            <p>{{ plan.tasks?.length || 0 }} tasks</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enhanced Navigation and Filter Controls -->
+    <div class="space-y-4 mb-4">
+      <!-- Navigation Row -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <!-- Quick Navigation -->
+          <div class="flex items-center gap-1">
+            <UButton
+              size="sm"
+              variant="outline"
+              icon="i-heroicons-home"
+              @click="navigateToProjectStart"
+              title="Go to Project Start"
+            >
+              Start
+            </UButton>
+            <UButton
+              size="sm"
+              variant="outline"
+              icon="i-heroicons-calendar"
+              @click="navigateToToday"
+              title="Go to Today"
+            >
+              Today
+            </UButton>
+            <UButton
+              size="sm"
+              variant="outline"
+              icon="i-heroicons-flag"
+              @click="navigateToProjectEnd"
+              title="Go to Project End"
+            >
+              End
+            </UButton>
+          </div>
+          
+          <!-- Navigation Controls -->
+          <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+          <div class="flex items-center gap-1">
+            <UButton
+              size="sm"
+              variant="ghost"
+              icon="i-heroicons-backward"
+              @click="navigateBackward"
+              title="Previous Period"
+            />
+            <UButton
+              size="sm"
+              variant="ghost"
+              icon="i-heroicons-forward"
+              @click="navigateForward"
+              title="Next Period"
+            />
+          </div>
+        </div>
+        
+        <!-- Current View Info -->
+        <div class="flex items-center gap-4">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            <span class="font-medium">View:</span> {{ getCurrentViewPeriod() }}
+          </div>
+          <div v-if="selectedTask" class="text-sm text-blue-600 dark:text-blue-400">
+            <span class="font-medium">Selected:</span> {{ selectedTask.name }}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Task Filter Row -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <!-- Priority Filter -->
+          <USelect
+            v-model="selectedPriorityFilter"
+            :options="priorityFilterOptions"
+            placeholder="Filter by Priority"
+            size="sm"
+            class="w-40"
+            @change="updateTaskFilter"
+          />
+          
+          <!-- Status Filter -->
+          <USelect
+            v-model="selectedStatusFilter"
+            :options="statusFilterOptions"
+            placeholder="Filter by Status"
+            size="sm"
+            class="w-40"
+            @change="updateTaskFilter"
+          />
+          
+          <!-- Search -->
+          <UInput
+            v-model="searchQuery"
+            placeholder="Search tasks..."
+            size="sm"
+            icon="i-heroicons-magnifying-glass"
+            class="w-48"
+            @input="updateTaskFilter"
+          />
+          
+          <!-- Clear Filters -->
+          <UButton
+            v-if="hasActiveFilters"
+            size="sm"
+            variant="ghost"
+            icon="i-heroicons-x-mark"
+            @click="clearAllFilters"
+            title="Clear All Filters"
+          />
+        </div>
+        
+        <!-- Task Count Info -->
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+          {{ filteredTaskCount }} / {{ totalTaskCount }} tasks
+        </div>
+      </div>
+    </div>
+
+    <!-- Gantt Chart Container -->
+    <div ref="gstcEl" class="gstc-wrapper" />
+    
+    <!-- Help Panel -->
+    <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <details class="group">
+        <summary class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer list-none">
+          <UIcon name="i-heroicons-question-mark-circle" class="w-4 h-4" />
+          Keyboard Shortcuts & Tips
+          <UIcon name="i-heroicons-chevron-down" class="w-3 h-3 transition-transform group-open:rotate-180" />
+        </summary>
+        <div class="mt-2 pl-6 text-xs text-gray-600 dark:text-gray-400 space-y-1">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <p class="font-medium text-gray-700 dark:text-gray-300">Navigation:</p>
+              <ul class="space-y-1 mt-1">
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Home</kbd> - Go to project start</li>
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">End</kbd> - Go to project end</li>
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl/Cmd + ←/→</kbd> - Navigate periods</li>
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl/Cmd + 0</kbd> - Go to today</li>
+              </ul>
+            </div>
+            <div>
+              <p class="font-medium text-gray-700 dark:text-gray-300">Zoom & Selection:</p>
+              <ul class="space-y-1 mt-1">
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl/Cmd + +/-</kbd> - Zoom in/out</li>
+                <li><kbd class="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Esc</kbd> - Clear selection</li>
+                <li><span class="text-gray-500">Click tasks to select them</span></li>
+                <li><span class="text-gray-500">Use filters to narrow down tasks</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import GSTC, { type GSTCResult, type Row, type Item } from 'gantt-schedule-timeline-calendar';
 import { Plugin as TimelinePointer } from 'gantt-schedule-timeline-calendar/dist/plugins/timeline-pointer.esm.min.js';
 import { Plugin as Selection } from 'gantt-schedule-timeline-calendar/dist/plugins/selection.esm.min.js';
@@ -11,307 +230,380 @@ import { Plugin as ItemResizing } from 'gantt-schedule-timeline-calendar/dist/pl
 import { Plugin as ItemMovement } from 'gantt-schedule-timeline-calendar/dist/plugins/item-movement.esm.min.js';
 import { Plugin as DependencyLines } from 'gantt-schedule-timeline-calendar/dist/plugins/dependency-lines.esm.min.js';
 import 'gantt-schedule-timeline-calendar/dist/style.css';
+import type { Plan } from '~/types/plan';
 
-const ganttData = {
-  "success": true,
-  "gantt_plan": {
-    "confidence": 0.92,
-    "project_name": "CraftHub E-commerce Platform",
-    "project_description": "Multi-vendor marketplace for handmade crafts with comprehensive vendor management and customer experience features",
-    "project_owner": "E-commerce Product Manager",
-    "project_start_date": "2025-01-01",
-    "project_end_date": "2025-06-30",
-    "total_duration_weeks": 26,
-    "tasks": [
-      {
-        "id": "T001",
-        "name": "Market Research & Competitor Analysis",
-        "description": "Analyze existing platforms and define unique value proposition for artisan marketplace",
-        "start_date": "2025-01-01",
-        "end_date": "2025-01-14",
-        "duration_days": 14,
-        "dependencies": [],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Business Analyst", "Product Manager"],
-        "resources": [],
-        "tags": ["research", "planning"],
-        "estimated_effort_hours": 80
-      },
-      {
-        "id": "T002",
-        "name": "Technical Architecture Design",
-        "description": "Design scalable microservices architecture for multi-vendor platform",
-        "start_date": "2025-01-15",
-        "end_date": "2025-02-01",
-        "duration_days": 17,
-        "dependencies": ["T001"],
-        "priority": "critical",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Lead Architect", "Backend Developer"],
-        "resources": [],
-        "tags": ["architecture", "technical"],
-        "estimated_effort_hours": 120
-      },
-      {
-        "id": "T003",
-        "name": "Database Schema & API Design",
-        "description": "Design multi-vendor database schema and RESTful API specifications",
-        "start_date": "2025-02-01",
-        "end_date": "2025-02-15",
-        "duration_days": 14,
-        "dependencies": ["T002"],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Database Designer", "Backend Developer"],
-        "resources": [],
-        "tags": ["database", "api"],
-        "estimated_effort_hours": 100
-      },
-      {
-        "id": "T004",
-        "name": "User Experience Design",
-        "description": "Create user personas and journey maps for vendors and customers",
-        "start_date": "2025-02-15",
-        "end_date": "2025-03-01",
-        "duration_days": 14,
-        "dependencies": ["T001"],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["UX Designer", "UI Designer"],
-        "resources": [],
-        "tags": ["design", "ux"],
-        "estimated_effort_hours": 90
-      },
-      {
-        "id": "T005",
-        "name": "Brand Identity & Design System",
-        "description": "Develop brand identity and comprehensive design system for platform",
-        "start_date": "2025-03-01",
-        "end_date": "2025-03-15",
-        "duration_days": 14,
-        "dependencies": ["T004"],
-        "priority": "medium",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Brand Designer", "UI Designer"],
-        "resources": [],
-        "tags": ["branding", "design"],
-        "estimated_effort_hours": 70
-      },
-      {
-        "id": "T006",
-        "name": "Backend Infrastructure Development",
-        "description": "Build core backend services including authentication, vendor management, and payment processing",
-        "start_date": "2025-03-15",
-        "end_date": "2025-04-15",
-        "duration_days": 31,
-        "dependencies": ["T003"],
-        "priority": "critical",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Backend Developer 1", "Backend Developer 2", "DevOps Engineer"],
-        "resources": [],
-        "tags": ["backend", "infrastructure"],
-        "estimated_effort_hours": 240
-      },
-      {
-        "id": "T007",
-        "name": "Frontend Marketplace Development",
-        "description": "Develop responsive web interface for customer marketplace with search and filtering",
-        "start_date": "2025-04-01",
-        "end_date": "2025-05-01",
-        "duration_days": 30,
-        "dependencies": ["T005", "T006"],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Frontend Developer 1", "Frontend Developer 2"],
-        "resources": [],
-        "tags": ["frontend", "marketplace"],
-        "estimated_effort_hours": 200
-      },
-      {
-        "id": "T008",
-        "name": "Vendor Portal Development",
-        "description": "Build comprehensive vendor portal for product and order management",
-        "start_date": "2025-04-15",
-        "end_date": "2025-05-15",
-        "duration_days": 30,
-        "dependencies": ["T006"],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Frontend Developer 3", "Backend Developer 1"],
-        "resources": [],
-        "tags": ["vendor", "portal"],
-        "estimated_effort_hours": 180
-      },
-      {
-        "id": "T009",
-        "name": "Payment Integration & Security",
-        "description": "Integrate Stripe payment processing with fraud detection and security measures",
-        "start_date": "2025-05-01",
-        "end_date": "2025-05-15",
-        "duration_days": 14,
-        "dependencies": ["T006"],
-        "priority": "critical",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["Payment Specialist", "Security Engineer"],
-        "resources": [],
-        "tags": ["payment", "security"],
-        "estimated_effort_hours": 100
-      },
-      {
-        "id": "T010",
-        "name": "Quality Assurance & Testing",
-        "description": "Comprehensive testing including unit, integration, and user acceptance testing",
-        "start_date": "2025-05-15",
-        "end_date": "2025-06-01",
-        "duration_days": 17,
-        "dependencies": ["T007", "T008", "T009"],
-        "priority": "high",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["QA Engineer 1", "QA Engineer 2"],
-        "resources": [],
-        "tags": ["testing", "qa"],
-        "estimated_effort_hours": 120
-      },
-      {
-        "id": "T011",
-        "name": "Production Deployment & Launch",
-        "description": "Deploy to production environment and execute go-to-market strategy",
-        "start_date": "2025-06-01",
-        "end_date": "2025-06-30",
-        "duration_days": 29,
-        "dependencies": ["T010"],
-        "priority": "critical",
-        "status": "not_started",
-        "progress_percentage": 0,
-        "assigned_to": ["DevOps Engineer", "Marketing Manager", "Project Manager"],
-        "resources": [],
-        "tags": ["deployment", "launch"],
-        "estimated_effort_hours": 150
-      }
-    ],
-    "milestones": [
-      {
-        "id": "M001",
-        "name": "Technical Architecture Approved",
-        "description": "Complete technical architecture design approved by stakeholders",
-        "due_date": "2025-02-01",
-        "success_criteria": ["Architecture document approved", "Technology stack finalized", "Development team aligned"]
-      },
-      {
-        "id": "M002",
-        "name": "Design System Completed",
-        "description": "Complete design system and brand identity ready for implementation",
-        "due_date": "2025-03-15",
-        "success_criteria": ["Brand guidelines finalized", "Component library created", "Design system documentation complete"]
-      },
-      {
-        "id": "M003",
-        "name": "Backend Core Services Ready",
-        "description": "All core backend services operational and tested",
-        "due_date": "2025-04-15",
-        "success_criteria": ["Authentication system working", "Payment processing integrated", "Vendor management APIs complete"]
-      },
-      {
-        "id": "M004",
-        "name": "Full Platform Functionality",
-        "description": "Complete platform ready for comprehensive testing",
-        "due_date": "2025-05-15",
-        "success_criteria": ["Marketplace functional", "Vendor portal complete", "Payment flow working", "Search and filtering operational"]
-      },
-      {
-        "id": "M005",
-        "name": "Public Launch Ready",
-        "description": "Platform tested, approved, and ready for public launch",
-        "due_date": "2025-06-30",
-        "success_criteria": ["All testing completed", "Performance benchmarks met", "Initial vendors onboarded", "Marketing campaign launched"]
-      }
-    ],
-    "phases": [
-      "Discovery & Planning",
-      "Design & Prototyping",
-      "Core Development",
-      "Testing & Quality Assurance",
-      "Launch & Deployment"
-    ],
-    "budget_estimate": 180000.0,
-    "risk_factors": [
-      "Payment processing integration complexities",
-      "Vendor acquisition slower than expected",
-      "Competition from established platforms like Etsy",
-      "Scalability challenges during peak traffic periods",
-      "Multi-vendor data management complexity",
-      "Regulatory compliance for international transactions"
-    ],
-    "success_metrics": [
-      "100+ vendors onboarded within first month",
-      "1,000+ customer registrations in launch week",
-      "Platform uptime > 99.9%",
-      "Average page load time < 2 seconds",
-      "Payment success rate > 99%",
-      "Customer satisfaction score > 4.5/5"
-    ],
-    "metadata": {
-      "created_by": "SwissAI API",
-      "creation_date": "2025-09-26",
-      "version": "1.0"
-    }
-  },
-  "metadata": {
-    "processing_time": "< 12 seconds",
-    "model_used": "swiss-ai/apertus-8b-instruct",
-    "confidence_score": 0.92,
-    "tasks_generated": 11,
-    "milestones_generated": 5,
-    "api_version": "1.0.0",
-    "timestamp": "2025-09-26T16:40:00"
+// Props
+interface Props {
+  plan?: Plan;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  plan: undefined,
+});
+
+// Reactive state
+const showDescription = ref(false);
+const currentZoomLevel = ref(2); // Default to 'Weeks' view
+const gstcEl = ref<HTMLDivElement | null>(null);
+const selectedTask = ref<any>(null);
+
+// Filter state
+const selectedPriorityFilter = ref('all');
+const selectedStatusFilter = ref('all');
+const searchQuery = ref('');
+
+// Filter options
+const priorityFilterOptions = [
+  { label: 'All Priorities', value: 'all' },
+  { label: 'Critical', value: 'critical' },
+  { label: 'High', value: 'high' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'Low', value: 'low' }
+];
+
+const statusFilterOptions = [
+  { label: 'All Status', value: 'all' },
+  { label: 'Not Started', value: 'not_started' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'On Hold', value: 'on_hold' }
+];
+
+// Zoom levels configuration
+const zoomLevels = [
+  { label: 'Years', period: 'year', format: 'YYYY' },
+  { label: 'Months', period: 'month', format: 'YYYY-MM' },
+  { label: 'Weeks', period: 'week', format: 'YYYY-MM-DD' },
+  { label: 'Days', period: 'day', format: 'YYYY-MM-DD' },
+  { label: 'Hours', period: 'hour', format: 'YYYY-MM-DD HH' },
+];
+
+let gstc: GSTCResult;
+
+// Use the plan data or fallback to sample data
+const ganttData = computed(() => {
+  if (props.plan) {
+    return {
+      success: true,
+      gantt_plan: props.plan,
+    };
   }
-};
+  
+  // Fallback sample data
+  return {
+    "success": true,
+    "gantt_plan": {
+      "confidence": 0.92,
+      "project_name": "Sample Project",
+      "project_description": "Sample project for demonstration purposes",
+      "project_owner": "Project Manager",
+      "project_start_date": "2025-01-01",
+      "project_end_date": "2025-06-30",
+      "total_duration_weeks": 26,
+      "tasks": []
+    }
+  };
+});
 
 const licenseKey = "====BEGIN LICENSE KEY====\nmETos+ErUJZyUsmGUgQlkgRXbC3qZEYa5628cDcSGS49XEcHbxlSa1SfOIYBjilJtAwqmKxGmf1rh+j8TklFAAsrvvAs0D3iGmCJ88PqNk9KVZAXw9HwBKv695WgRMw1D+K1SS9gE4SLI/mg88I/Qze6UPHsj2ip1xa+IRNanaX72tuinxAxg54utxiXM2lKeL6UdkuvsNfMJMiakVvOh+zJ8JmImsUMbIb+SCZhZzgeokm5b7Au62rhBIhJAVBbiyop2ZpOk7l4YEZIv4YMELpQ9hFThhAkpwhC6hi2euGWowKamDq0RLC/eEnoELzif4hNuib/Epf6hx5KOg3Fbg==||U2FsdGVkX18GQzmFDaLCsrFAoK/HL09cV3wYQ+DtAWRyJe70WlszYc4siRnq6HgHPXVOmhMdB3DNDLG/Q6UD5XEVJsnwGMU+5kooM1TFrww=\nlmCFtX6rYtv407DvU331WjBMWfbTzcY7Qy9grgKUG7bw4gJOfKPnH0/ohL8OZRgON1U89aiGH0klou3B2Au+4cXF4ZP0DJDiKYwKgFZWnQbw2C+ulaz0mHQ9iANyrgHpSJ7FqgNohXc5Lm54rkpkX+oiKIboQhsCLQURAwd7Yx/m2FGyzgrjGTvWDAQS3JIOsqDiNGSPeGdP6kMnB9ykcFdYTC6+3c50FgTovTE8kILgIgo59zyCmvfhmXK+KuPf5C4EicOTfsQcqaJmiR1/AX06gma4vSkM+eq8KuD1NQTDODyq0nT+g/4DBg+3y43vzQaqYfO9xNVc/2iKm88/vQ==\n====END LICENSE KEY====";
 
-let gstc: GSTCResult;
-const gstcEl = ref<HTMLDivElement | null>(null);
+// Utility functions
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString();
+};
 
-// helper functions
+// Computed properties for filtering
+const filteredTasks = computed(() => {
+  const tasks = ganttData.value.gantt_plan?.tasks || [];
+  
+  return tasks.filter(task => {
+    // Priority filter
+    if (selectedPriorityFilter.value !== 'all' && task.priority?.toLowerCase() !== selectedPriorityFilter.value) {
+      return false;
+    }
+    
+    // Status filter
+    if (selectedStatusFilter.value !== 'all' && task.status?.toLowerCase() !== selectedStatusFilter.value) {
+      return false;
+    }
+    
+    // Search query filter
+    if (searchQuery.value.trim() && !task.name?.toLowerCase().includes(searchQuery.value.toLowerCase().trim())) {
+      return false;
+    }
+    
+    return true;
+  });
+});
+
+const hasActiveFilters = computed(() => {
+  return selectedPriorityFilter.value !== 'all' ||
+         selectedStatusFilter.value !== 'all' ||
+         searchQuery.value.trim().length > 0;
+});
+
+const filteredTaskCount = computed(() => filteredTasks.value.length);
+const totalTaskCount = computed(() => ganttData.value.gantt_plan?.tasks?.length || 0);
+
+const getCurrentViewPeriod = (): string => {
+  const level = zoomLevels[currentZoomLevel.value];
+  return level.label;
+};
+
+// Navigation functions
+const navigateToToday = () => {
+  if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to) {
+    try {
+      const today = GSTC.api.date().startOf('day').valueOf();
+      gstc.api.scroll.to.time(today);
+    } catch (error) {
+      console.warn('Navigation to today failed:', error);
+    }
+  }
+};
+
+const navigateToProjectStart = () => {
+  if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to && ganttData.value.gantt_plan?.project_start_date) {
+    try {
+      const startDate = GSTC.api.date(ganttData.value.gantt_plan.project_start_date).startOf('day').valueOf();
+      gstc.api.scroll.to.time(startDate);
+    } catch (error) {
+      console.warn('Navigation to project start failed:', error);
+    }
+  }
+};
+
+const navigateToProjectEnd = () => {
+  if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to && ganttData.value.gantt_plan?.project_end_date) {
+    try {
+      const endDate = GSTC.api.date(ganttData.value.gantt_plan.project_end_date).startOf('day').valueOf();
+      gstc.api.scroll.to.time(endDate);
+    } catch (error) {
+      console.warn('Navigation to project end failed:', error);
+    }
+  }
+};
+
+const navigateForward = () => {
+  if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to && gstc.state) {
+    try {
+      const currentTime = gstc.state.get('config.chart.time.from') || Date.now();
+      const timeAmount = getTimeAmountForZoom();
+      const newTime = GSTC.api.date(currentTime).add(timeAmount.value, timeAmount.unit).valueOf();
+      gstc.api.scroll.to.time(newTime);
+    } catch (error) {
+      console.warn('Forward navigation failed:', error);
+    }
+  }
+};
+
+const navigateBackward = () => {
+  if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to && gstc.state) {
+    try {
+      const currentTime = gstc.state.get('config.chart.time.from') || Date.now();
+      const timeAmount = getTimeAmountForZoom();
+      const newTime = GSTC.api.date(currentTime).subtract(timeAmount.value, timeAmount.unit).valueOf();
+      gstc.api.scroll.to.time(newTime);
+    } catch (error) {
+      console.warn('Backward navigation failed:', error);
+    }
+  }
+};
+
+// Filter functions
+const updateTaskFilter = () => {
+  // Update the Gantt chart with filtered tasks
+  if (gstc && gstc.state) {
+    try {
+      const filteredRows = generateRowsFromFilteredData();
+      const filteredItems = generateItemsFromFilteredData();
+      
+      gstc.state.update('config.list.rows', filteredRows);
+      gstc.state.update('config.chart.items', filteredItems);
+    } catch (error) {
+      console.warn('Task filter update failed:', error);
+    }
+  }
+};
+
+const clearAllFilters = () => {
+  selectedPriorityFilter.value = 'all';
+  selectedStatusFilter.value = 'all';
+  searchQuery.value = '';
+  updateTaskFilter();
+};
+
+const getTimeAmountForZoom = () => {
+  const level = zoomLevels[currentZoomLevel.value];
+  switch (level.period) {
+    case 'year': return { value: 1, unit: 'year' };
+    case 'month': return { value: 3, unit: 'months' };
+    case 'week': return { value: 4, unit: 'weeks' };
+    case 'day': return { value: 7, unit: 'days' };
+    case 'hour': return { value: 24, unit: 'hours' };
+    default: return { value: 1, unit: 'week' };
+  }
+};
+
+// Zoom functions
+const zoomIn = () => {
+  if (currentZoomLevel.value < zoomLevels.length - 1) {
+    currentZoomLevel.value++;
+    updateChartZoom();
+  }
+};
+
+const zoomOut = () => {
+  if (currentZoomLevel.value > 0) {
+    currentZoomLevel.value--;
+    updateChartZoom();
+  }
+};
+
+const updateChartZoom = () => {
+  if (!gstc || !gstc.state) {
+    console.warn('GSTC not fully initialized for zoom update');
+    return;
+  }
+  
+  try {
+    const level = zoomLevels[currentZoomLevel.value];
+    let timeZoomConfig = {};
+    
+    switch (level.period) {
+      case 'year':
+        timeZoomConfig = {
+          'chart.time.zoom': 20,
+          'chart.time.scale': 'year'
+        };
+        break;
+      case 'month':
+        timeZoomConfig = {
+          'chart.time.zoom': 21,
+          'chart.time.scale': 'month'
+        };
+        break;
+      case 'week':
+        timeZoomConfig = {
+          'chart.time.zoom': 22,
+          'chart.time.scale': 'week'
+        };
+        break;
+      case 'day':
+        timeZoomConfig = {
+          'chart.time.zoom': 23,
+          'chart.time.scale': 'day'
+        };
+        break;
+      case 'hour':
+        timeZoomConfig = {
+          'chart.time.zoom': 24,
+          'chart.time.scale': 'hour'
+        };
+        break;
+    }
+    
+    gstc.state.update('config', timeZoomConfig);
+  } catch (error) {
+    console.warn('Zoom update failed:', error);
+  }
+};
+
+// Helper functions for generating chart data
 function generateRowsFromData(): { [key: string]: Row } {
   const rows: { [key: string]: Row } = {};
-  ganttData.gantt_plan.tasks.forEach(task => {
-    const id = GSTC.api.GSTCID(task.id);
-    rows[id] = {
-      id,
-      label: task.name,
-    };
+  const tasks = ganttData.value.gantt_plan?.tasks || [];
+  
+  tasks.forEach(task => {
+    if (task && task.id && task.name) {
+      const id = GSTC.api.GSTCID(task.id);
+      rows[id] = {
+        id,
+        label: task.name,
+      };
+    }
   });
   return rows;
 }
 
 function generateItemsFromData(): { [key: string]: Item } {
   const items: { [key: string]: Item } = {};
-  ganttData.gantt_plan.tasks.forEach(task => {
-    const id = GSTC.api.GSTCID(task.id);
-    items[id] = {
-      id,
-      label: task.name,
-      rowId: id,
-      time: {
-        start: GSTC.api.date(task.start_date).startOf('day').valueOf(),
-        end: GSTC.api.date(task.end_date).endOf('day').valueOf(),
-      },
-      dependencies: task.dependencies.map(depId => GSTC.api.GSTCID(depId)),
-    };
+  const tasks = ganttData.value.gantt_plan?.tasks || [];
+  
+  tasks.forEach(task => {
+    if (task && task.id && task.name && task.start_date && task.end_date) {
+      const id = GSTC.api.GSTCID(task.id);
+      items[id] = {
+        id,
+        label: task.name,
+        rowId: id,
+        time: {
+          start: GSTC.api.date(task.start_date).startOf('day').valueOf(),
+          end: GSTC.api.date(task.end_date).endOf('day').valueOf(),
+        },
+        dependencies: (task.dependencies || []).map(depId => GSTC.api.GSTCID(depId)),
+        style: {
+          backgroundColor: getPriorityColor(task.priority || 'medium'),
+        },
+      };
+    }
   });
   return items;
+}
+
+// Filtered data generation functions
+function generateRowsFromFilteredData(): { [key: string]: Row } {
+  const rows: { [key: string]: Row } = {};
+  const tasks = filteredTasks.value;
+  
+  tasks.forEach(task => {
+    if (task && task.id && task.name) {
+      const id = GSTC.api.GSTCID(task.id);
+      rows[id] = {
+        id,
+        label: task.name,
+      };
+    }
+  });
+  return rows;
+}
+
+function generateItemsFromFilteredData(): { [key: string]: Item } {
+  const items: { [key: string]: Item } = {};
+  const tasks = filteredTasks.value;
+  
+  tasks.forEach(task => {
+    if (task && task.id && task.name && task.start_date && task.end_date) {
+      const id = GSTC.api.GSTCID(task.id);
+      items[id] = {
+        id,
+        label: task.name,
+        rowId: id,
+        time: {
+          start: GSTC.api.date(task.start_date).startOf('day').valueOf(),
+          end: GSTC.api.date(task.end_date).endOf('day').valueOf(),
+        },
+        dependencies: (task.dependencies || []).filter(depId => 
+          tasks.some(t => t.id === depId)
+        ).map(depId => GSTC.api.GSTCID(depId)),
+        style: {
+          backgroundColor: getPriorityColor(task.priority || 'medium'),
+        },
+      };
+    }
+  });
+  return items;
+}
+
+function getPriorityColor(priority: string): string {
+  switch (priority?.toLowerCase()) {
+    case 'critical': return '#dc2626'; // red-600
+    case 'high': return '#ea580c'; // orange-600
+    case 'medium': return '#ca8a04'; // yellow-600
+    case 'low': return '#16a34a'; // green-600
+    default: return '#6b7280'; // gray-500
+  }
 }
 
 onMounted(() => {
@@ -323,10 +615,10 @@ onMounted(() => {
         data: {
           [GSTC.api.GSTCID('label')]: {
             id: GSTC.api.GSTCID('label'),
-            width: 200,
+            width: 250,
             data: 'label',
             header: {
-              content: 'Task',
+              content: 'Task Name',
             },
           },
         },
@@ -335,6 +627,17 @@ onMounted(() => {
     },
     chart: {
       items: generateItemsFromData(),
+      time: {
+        zoom: currentZoomLevel.value + 20,
+      },
+    },
+    locale: {
+      name: 'en',
+      Now: 'Now',
+      X_years: '{0} years',
+      X_months: '{0} months',
+      X_weeks: '{0} weeks',
+      X_days: '{0} days',
     },
   };
 
@@ -346,6 +649,96 @@ onMounted(() => {
     element: gstcEl.value as HTMLElement,
     state,
   });
+
+  // Add event listeners for task interactions
+  if (gstc.state) {
+    // Task selection handler
+    gstc.state.subscribe('config.chart.items', (items: any) => {
+      // Listen for selection changes
+      const selectedItemIds = gstc.state?.get('config.chart.selection.items') || [];
+      if (selectedItemIds.length > 0) {
+        const selectedId = selectedItemIds[0];
+        const tasks = ganttData.value.gantt_plan?.tasks || [];
+        const selectedTaskData = tasks.find(task => GSTC.api.GSTCID(task.id) === selectedId);
+        selectedTask.value = selectedTaskData || null;
+      } else {
+        selectedTask.value = null;
+      }
+    });
+  }
+
+  // Add keyboard navigation
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (!gstc) return;
+    
+    switch (event.key) {
+      case 'Home':
+        event.preventDefault();
+        navigateToProjectStart();
+        break;
+      case 'End':
+        event.preventDefault();
+        navigateToProjectEnd();
+        break;
+      case 'ArrowLeft':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          navigateBackward();
+        }
+        break;
+      case 'ArrowRight':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          navigateForward();
+        }
+        break;
+      case '+':
+      case '=':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          zoomIn();
+        }
+        break;
+      case '-':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          zoomOut();
+        }
+        break;
+      case '0':
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          navigateToToday();
+        }
+        break;
+      case 'Escape':
+        selectedTask.value = null;
+        break;
+    }
+  };
+
+  // Add event listener
+  document.addEventListener('keydown', handleKeyDown);
+
+  // Clean up keyboard listener on unmount
+  onBeforeUnmount(() => {
+    document.removeEventListener('keydown', handleKeyDown);
+  });
+
+  // Set initial view to show project timeline - with delay to ensure GSTC is fully initialized
+  if (ganttData.value.gantt_plan?.project_start_date) {
+    // Use setTimeout to ensure GSTC is fully initialized before scrolling
+    setTimeout(() => {
+      try {
+        if (gstc && gstc.api && gstc.api.scroll && gstc.api.scroll.to) {
+          const startDate = GSTC.api.date(ganttData.value.gantt_plan.project_start_date).startOf('day').valueOf();
+          gstc.api.scroll.to.time(startDate);
+        }
+      } catch (error) {
+        console.warn('Initial scroll to project start failed:', error);
+      }
+    }, 100);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -356,7 +749,108 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.gantt-container {
+  @apply w-full;
+}
+
 .gstc-wrapper {
-  height: 70vh;
+  height: 60vh;
+  min-height: 400px;
+  @apply border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.gstc-wrapper:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Enhanced styling for better visual appeal and interactions */
+.gstc-wrapper :deep(.gstc-list-column-header) {
+  @apply bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-semibold;
+}
+
+.gstc-wrapper :deep(.gstc-list-row) {
+  @apply border-b border-gray-100 dark:border-gray-700;
+  transition: background-color 0.2s ease;
+}
+
+.gstc-wrapper :deep(.gstc-list-row:hover) {
+  @apply bg-blue-50 dark:bg-blue-900/20;
+}
+
+.gstc-wrapper :deep(.gstc-list-row--selected) {
+  @apply bg-blue-100 dark:bg-blue-800/30;
+}
+
+.gstc-wrapper :deep(.gstc-chart-timeline-items-item) {
+  @apply rounded-md shadow-sm;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gstc-wrapper :deep(.gstc-chart-timeline-items-item:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  opacity: 0.9;
+}
+
+.gstc-wrapper :deep(.gstc-chart-timeline-items-item--selected) {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Grid and timeline enhancements */
+.gstc-wrapper :deep(.gstc-timeline-grid-line) {
+  stroke: rgba(156, 163, 175, 0.6);
+}
+
+.dark .gstc-wrapper :deep(.gstc-timeline-grid-line) {
+  stroke: rgba(75, 85, 99, 0.6);
+}
+
+/* Today pointer styling */
+.gstc-wrapper :deep(.gstc-timeline-pointer) {
+  stroke: #ef4444;
+  stroke-width: 2px;
+  opacity: 0.8;
+}
+
+/* Dependency lines */
+.gstc-wrapper :deep(.gstc-dependency-line) {
+  stroke: #6b7280;
+  stroke-width: 1.5px;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.gstc-wrapper :deep(.gstc-dependency-line:hover) {
+  stroke: #3b82f6;
+  opacity: 1;
+  stroke-width: 2px;
+}
+
+/* Scrollbars */
+.gstc-wrapper :deep(.gstc-list-main-scroll) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.gstc-wrapper :deep(.gstc-list-main-scroll::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+
+.gstc-wrapper :deep(.gstc-list-main-scroll::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.gstc-wrapper :deep(.gstc-list-main-scroll::-webkit-scrollbar-thumb) {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.gstc-wrapper :deep(.gstc-list-main-scroll::-webkit-scrollbar-thumb:hover) {
+  background-color: rgba(156, 163, 175, 0.7);
 }
 </style>

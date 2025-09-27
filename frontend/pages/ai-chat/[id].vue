@@ -65,6 +65,9 @@ async function sendMessage() {
   activeChat.value.messages.push(userMessage);
 
   try {
+    // Use the simplified API service
+    const { ask } = useApiCall();
+    
     // Call the ask endpoint with conversation context
     const conversationHistory = activeChat.value.messages
       .filter((msg) => msg.id !== userMessage.id) // Exclude current message
@@ -72,15 +75,10 @@ async function sendMessage() {
       .join("\n");
 
     const queryWithContext = conversationHistory
-      ? `Previous conversation:\n${conversationHistory}\n\nnCurrent question: ${messageText}`
+      ? `Previous conversation:\n${conversationHistory}\n\nCurrent question: ${messageText}`
       : messageText;
 
-    const response = await $fetch<{ answer: string }>("http://127.0.0.1:8000/ask", {
-      method: "POST",
-      body: {
-        query: queryWithContext,
-      },
-    });
+    const response = await ask(queryWithContext);
 
     // Add AI response
     if (activeChat.value) {
@@ -110,7 +108,7 @@ async function sendMessage() {
     if (activeChat.value) {
       activeChat.value.messages.push({
         id: Date.now() + 1,
-        text: "Sorry, I encountered an error. Please try again.",
+        text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         isUser: false,
       });
     }

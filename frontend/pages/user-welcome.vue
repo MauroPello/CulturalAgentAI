@@ -163,7 +163,7 @@ const cards = [
   },
   {
     title: 'Review Chats',
-    description: 'Review chats and flag messages that may not be appropriate for the language it\'s being spoken in.',
+    description: 'Analyze messages and communications for cultural appropriateness, language sensitivity, and contextual respect with AI-powered insights.',
     to: '/chat-review',
   },
   {

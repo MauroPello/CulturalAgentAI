@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     swiss_ai_platform_api_key: str
     
     # LLM settings
-    llm_model: str = "swiss-ai/apertus-8b-instruct"
+    llm_model: str = "swiss-ai/apertus-8b-instruct"  # MANDATORY: Must use apertus
     llm_temperature: float = 0.1
     llm_max_tokens: int = 1000
     

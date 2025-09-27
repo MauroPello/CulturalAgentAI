@@ -210,19 +210,24 @@ async def ask_intelligent(request: IntelligentSearchRequest, query_router: Query
 
 @app.get("/uploaded-files")
 async def list_uploaded_files():
+    """
+    Returns a list of documents that have been processed and stored in the vector database.
+    Since original files are deleted after processing, we query the vector store for document metadata.
+    """
     try:
+        processed_docs = vector_store_instance.get_processed_documents()
+        
+        # Convert to the format expected by the frontend
         files = []
-        # Include both PDF and Excel files
-        for pattern in ["*.pdf", "*.xlsx", "*.xls", "*.xlsm"]:
-            for file_path in UPLOAD_DIR.glob(pattern):
-                file_stats = file_path.stat()
-                files.append({
-                    "filename": file_path.name,
-                    "file_size": file_stats.st_size,
-                    "upload_time": file_stats.st_mtime,
-                    "file_path": str(file_path),
-                    "file_type": file_path.suffix
-                })
+        for doc in processed_docs:
+            files.append({
+                "filename": doc['filename'],
+                "file_size": 0,  # Not available since original file was deleted
+                "upload_time": 0,  # Not available since original file was deleted  
+                "file_path": "",  # Not applicable since file is in vector store
+                "file_type": doc['file_type'],
+                "chunk_count": doc['chunk_count']
+            })
         
         return JSONResponse(
             status_code=200,
@@ -235,6 +240,53 @@ async def list_uploaded_files():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+@app.delete("/delete-document/{filename}")
+async def delete_document(filename: str):
+    """
+    Delete a processed document from the vector database by filename.
+    """
+    try:
+        success = vector_store_instance.delete_document_by_filename(filename)
+        
+        if success:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": f"Document '{filename}' deleted successfully",
+                    "filename": filename
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Document '{filename}' not found"
+            )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+@app.delete("/clear-library")
+async def clear_library():
+    """
+    Delete all processed documents from the vector database.
+    """
+    try:
+        success = vector_store_instance.clear_all_documents()
+        
+        if success:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": "Library cleared successfully",
+                    "total_deleted": vector_store_instance.get_count()
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Failed to clear library")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing library: {str(e)}")
 
 class CulturalAlignRequest(BaseModel):
     text: str

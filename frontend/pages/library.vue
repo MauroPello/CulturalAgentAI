@@ -60,9 +60,9 @@
           </div>
           <UAlert
             v-if="uploadStatus"
-            :title="uploadStatus.includes('successfully') ? 'Success' : 'Error'"
+            :title="uploadStatus.includes('✅') && !uploadStatus.includes('❌') ? 'Success' : uploadStatus.includes('❌') && !uploadStatus.includes('✅') ? 'Error' : 'Mixed Results'"
             :description="uploadStatus"
-            :color="uploadStatus.includes('successfully') ? 'green' : 'red'"
+            :color="uploadStatus.includes('✅') && !uploadStatus.includes('❌') ? 'green' : uploadStatus.includes('❌') && !uploadStatus.includes('✅') ? 'red' : 'yellow'"
             variant="subtle"
             class="mt-4"
           />
@@ -89,7 +89,27 @@
               }"
               @close="deleteError = null"
             />
-            <UTable :rows="documents" :columns="columns">
+            <div v-if="isLoadingDocuments" class="flex justify-center py-6">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin" />
+                <span>Loading documents...</span>
+              </div>
+            </div>
+            <UAlert
+              v-else-if="documentError"
+              title="Error Loading Documents"
+              :description="documentError"
+              color="red"
+              variant="subtle"
+              class="mb-4"
+              :close-button="{
+                icon: 'i-heroicons-x-mark-20-solid',
+                color: 'red',
+                variant: 'ghost',
+              }"
+              @close="documentError = null"
+            />
+            <UTable v-else :rows="documents" :columns="columns">
               <template #empty-state>
                 <div class="flex flex-col items-center justify-center py-6 gap-3">
                   <UIcon name="i-heroicons-document-text" class="w-10 h-10" />
@@ -99,13 +119,8 @@
                   </p>
                 </div>
               </template>
-              <template #status-data="{ row }">
-                <UBadge
-                  :color="row.status === 'completed' ? 'green' : 'orange'"
-                  variant="subtle"
-                >
-                  {{ row.status }}
-                </UBadge>
+              <template #file_size-data="{ row }">
+                {{ formatFileSize(row.file_size) }}
               </template>
               <template #actions-data="{ row }">
                 <div class="flex justify-end">
@@ -135,7 +150,7 @@
             </h3>
           </template>
 
-          <p>Are you sure you want to delete "{{ documentToDelete?.name }}"?</p>
+          <p>Are you sure you want to delete "{{ documentToDelete?.filename }}"?</p>
 
           <template #footer>
             <div class="flex justify-end gap-2">
@@ -170,16 +185,54 @@ interface Document {
 
 // --- Documents List ---
 const columns = [
-  { key: "name", label: "Document Name" },
-  { key: "status", label: "Status" },
+  { key: "filename", label: "Document Name" },
+  { key: "file_type", label: "Type" },
+  { key: "file_size", label: "Size" },
   { key: "actions", label: "Actions", class: "text-right" },
 ];
-const documents = ref<Document[]>([
-  { id: 1, name: "Document 1.pdf", status: "completed" },
-  { id: 2, name: "Document 2.docx", status: "processing" },
-  { id: 3, name: "Another document.txt", status: "completed" },
-]);
-// TODO: Fetch documents from an API onMounted
+
+interface DocumentFile {
+  filename: string
+  file_size: number
+  upload_time: number
+  file_path: string
+  file_type: string
+}
+
+const documents = ref<DocumentFile[]>([]);
+const isLoadingDocuments = ref(false);
+const documentError = ref<string | null>(null);
+
+// Function to refresh document list
+const refreshDocumentList = async () => {
+  isLoadingDocuments.value = true;
+  documentError.value = null;
+  
+  try {
+    const { getFiles } = useApiCall();
+    const result = await getFiles();
+    documents.value = result.files;
+  } catch (error) {
+    documentError.value = error instanceof Error ? error.message : 'Failed to load documents';
+    console.error('Error loading documents:', error);
+  } finally {
+    isLoadingDocuments.value = false;
+  }
+};
+
+// Load documents on component mount
+onMounted(async () => {
+  await refreshDocumentList();
+});
+
+// Helper function to format file sizes
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return 'Processed'; // Changed for processed documents
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 // --- Upload ---
 const selectedFiles = ref<File[]>([]);
@@ -218,86 +271,79 @@ const uploadFile = async () => {
 
   isUploading.value = true;
   uploadStatus.value = "";
-  const uploadResults: string[] = [];
 
-  for (const file of selectedFiles.value) {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("http://localhost:8000/process-document/", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        uploadResults.push(
-          `SUCCESS: '${file.name}' processed (${result.chunks_added} chunks created).`
-        );
-      } else {
-        const errorData = await response
-          .json()
-          .catch(() => ({ detail: "Unknown error" }));
-        uploadResults.push(
-          `ERROR: Upload failed for '${file.name}': ${errorData.detail}`
-        );
-      }
-    } catch (error) {
-      uploadResults.push(
-        `ERROR: Network error for '${file.name}': ${
-          error instanceof Error ? error.message : "Unknown"
-        }`
+  try {
+    const { uploadDocuments } = useApiCall();
+    const result = await uploadDocuments(selectedFiles.value);
+    
+    // Check if we have any successful uploads
+    const hasSuccess = result.processed_files && result.processed_files.length > 0;
+    const hasErrors = result.errors && result.errors.length > 0;
+    
+    if (hasSuccess && !hasErrors) {
+      // Only successful uploads
+      const successMessages = result.processed_files.map(file => 
+        `✅ '${file.filename}' processed successfully (${file.chunks_added} chunks created)`
       );
+      uploadStatus.value = successMessages.join("\n");
+    } else if (hasSuccess && hasErrors) {
+      // Mixed results
+      const successMessages = result.processed_files.map(file => 
+        `✅ '${file.filename}' processed successfully (${file.chunks_added} chunks created)`
+      );
+      const errorMessages = result.errors.map(error =>
+        `❌ Upload failed for '${error.filename}': ${error.error}`
+      );
+      uploadStatus.value = [...successMessages, ...errorMessages].join("\n");
+    } else if (!hasSuccess && hasErrors) {
+      // Only errors
+      const errorMessages = result.errors.map(error =>
+        `❌ Upload failed for '${error.filename}': ${error.error}`
+      );
+      uploadStatus.value = errorMessages.join("\n");
     }
+    
+    // Refresh the document list
+    await refreshDocumentList();
+    
+  } catch (error) {
+    uploadStatus.value = `❌ Upload error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+  } finally {
+    isUploading.value = false;
+    selectedFiles.value = [];
+    const fileInput = document.getElementById("dropzone-file") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
   }
-
-  isUploading.value = false;
-  uploadStatus.value = uploadResults.join("\n");
-  selectedFiles.value = [];
-  const fileInput = document.getElementById(
-    "dropzone-file"
-  ) as HTMLInputElement;
-  if (fileInput) fileInput.value = "";
-  // TODO: Refresh the document list
 };
 
 // --- Delete ---
 const isDeleting = ref(false);
 const deleteError = ref<string | null>(null);
 const isDeleteModalOpen = ref(false);
-const documentToDelete = ref<Document | null>(null);
+const documentToDelete = ref<DocumentFile | null>(null);
 
-const handleDelete = (document: Document) => {
+const handleDelete = (document: DocumentFile) => {
   documentToDelete.value = document;
   isDeleteModalOpen.value = true;
 };
 
 const confirmDelete = async () => {
   if (documentToDelete.value) {
-    await deleteDocument(documentToDelete.value.id);
+    await deleteDocument(documentToDelete.value.filename);
   }
   isDeleteModalOpen.value = false;
 };
 
-const deleteDocument = async (documentId: number) => {
+const deleteDocument = async (filename: string) => {
   isDeleting.value = true;
   deleteError.value = null;
   try {
-    const response = await fetch(
-      `http://localhost:8000/documents/${documentId}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Failed to delete document.");
-    }
-
-    // Refresh list on success
-    documents.value = documents.value.filter((d) => d.id !== documentId);
+    const { deleteDocument } = useApiCall();
+    await deleteDocument(filename);
+    
+    // Refresh the document list
+    await refreshDocumentList();
+    
   } catch (err) {
     if (err instanceof Error) {
       deleteError.value = err.message;
