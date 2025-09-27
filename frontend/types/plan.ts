@@ -5,3 +5,5 @@ export interface Plan extends Partial<typeof ganttData.gantt_plan> {
   project_name: string;
   project_description: string;
 }
+
+export type Task = (typeof ganttData.gantt_plan.tasks)[number];
