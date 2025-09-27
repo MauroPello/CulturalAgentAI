@@ -1,4 +1,14 @@
 <template>
+  <div class="flex space-x-4 mb-4">
+    <div>
+      <label for="startDate" class="block text-sm font-medium text-gray-700">Start Date</label>
+      <Datepicker v-model="startDate" :enable-time-picker="false" auto-apply />
+    </div>
+    <div>
+      <label for="endDate" class="block text-sm font-medium text-gray-700">End Date</label>
+      <Datepicker v-model="endDate" :enable-time-picker="false" auto-apply />
+    </div>
+  </div>
   <div ref="gstcEl" class="gstc-wrapper" />
   <TaskDetailsModal
     v-if="selectedTask"
@@ -18,6 +28,8 @@ import { Plugin as DependencyLines } from 'gantt-schedule-timeline-calendar/dist
 import { Plugin as ProgressBar } from 'gantt-schedule-timeline-calendar/dist/plugins/progress-bar.esm.min.js';
 import { Plugin as HighlightWeekends } from 'gantt-schedule-timeline-calendar/dist/plugins/highlight-weekends.esm.min.js';
 import 'gantt-schedule-timeline-calendar/dist/style.css';
+import Datepicker from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css';
 import type { Plan, Task } from '~/types/plan';
 import TaskDetailsModal from './TaskDetailsModal.vue';
 
@@ -31,6 +43,8 @@ let gstc: GSTCResult;
 const gstcEl = ref<HTMLDivElement | null>(null);
 const selectedTask = ref<Task | null>(null);
 const isModalVisible = ref(false);
+const startDate = ref<Date | null>(null);
+const endDate = ref<Date | null>(null);
 
 const assigneeIcons: { [key: string]: string } = {};
 const availableIcons = ['/icons/fox.png', '/icons/gorilla.png', '/icons/reindeer.png'];
@@ -43,6 +57,23 @@ function getAssigneeIcon(assignee: string) {
     iconIndex++;
   }
   return assigneeIcons[assignee];
+}
+
+function setInitialDates() {
+  if (!props.plan || !props.plan.tasks || props.plan.tasks.length === 0) {
+    return;
+  }
+
+  const startDates = props.plan.tasks.map(task => GSTC.api.date(task.start_date).valueOf());
+  const endDates = props.plan.tasks.map(task => GSTC.api.date(task.end_date).valueOf());
+
+  if (startDates.length > 0) {
+    startDate.value = new Date(Math.min(...startDates));
+  }
+
+  if (endDates.length > 0) {
+    endDate.value = new Date(Math.max(...endDates));
+  }
 }
 
 // helper functions
@@ -98,6 +129,8 @@ function handleItemClick(element: any, data: { item: Item }) {
 
 onMounted(() => {
   if (!props.plan) return;
+
+  setInitialDates();
 
   const config = {
     licenseKey,
@@ -201,12 +234,23 @@ onMounted(() => {
     state,
   });
 
+  watch([startDate, endDate], ([newStartDate, newEndDate]) => {
+    if (state && newStartDate && newEndDate) {
+      state.update('config.chart.time', (time) => {
+        time.from = GSTC.api.date(newStartDate).startOf('day').valueOf();
+        time.to = GSTC.api.date(newEndDate).endOf('day').valueOf();
+        return time;
+      });
+    }
+  });
+
   watch(() => props.plan, (newPlan) => {
     if (newPlan) {
       const rows = generateRowsFromData();
       const items = generateItemsFromData();
       state.update('config.list.rows', rows);
       state.update('config.chart.items', items);
+      setInitialDates();
     }
   }, { deep: true });
 });
