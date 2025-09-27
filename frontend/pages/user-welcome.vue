@@ -118,19 +118,20 @@
         </div>
         <UCard>
           <div v-if="latestDocuments.length > 0" class="space-y-2 max-h-64 overflow-y-auto">
-            <div v-for="doc in latestDocuments" :key="doc.id" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-x-3">
-                  <UIcon name="i-heroicons-document-20-solid" class="w-5 h-5 text-gray-400" />
-                  <p class="font-semibold">
-                    {{ doc.name }}
-                  </p>
-                </div>
-                <NuxtLink :to="doc.url" target="_blank" class="text-primary-500 hover:underline text-sm">
-                  View
-                </NuxtLink>
+            <NuxtLink
+              v-for="doc in latestDocuments"
+              :key="doc.id"
+              to="/library"
+              class="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <div class="flex items-center gap-x-3">
+                <UIcon name="i-heroicons-document-20-solid" class="w-5 h-5 text-gray-400" />
+                <p class="font-semibold">
+                  {{ doc.name }}
+                </p>
               </div>
-            </div>
+              <span class="text-sm text-gray-500">{{ doc.upload_date }}</span>
+            </NuxtLink>
           </div>
           <div v-else class="text-center text-gray-500 dark:text-gray-400">
             No documents yet. Upload documents to the library.
@@ -142,13 +143,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { usePlans } from '~/composables/usePlans';
 import { useChats } from '~/composables/useChats';
+import { useDocuments } from '~/composables/useDocuments';
 
 const { plans } = usePlans();
 const { chats } = useChats();
+const { documents: allDocuments } = useDocuments();
+
 const latestPlans = computed(() => plans.value.slice(0, 3));
 const latestChats = computed(() => chats.value.slice(0, 3));
+const latestDocuments = computed(() => allDocuments.value.slice(0, 3));
 
 const cards = [
   {
@@ -181,12 +187,6 @@ const cards = [
     description: 'Upload documents to the library.',
     to: '/library',
   },
-]
-
-const latestDocuments = [
-  { id: 1, name: 'Project Proposal.pdf', url: '#' },
-  { id: 2, name: 'Meeting Notes.docx', url: '#' },
-  { id: 3, name: 'Budget Spreadsheet.xlsx', url: '#' },
 ]
 </script>
 

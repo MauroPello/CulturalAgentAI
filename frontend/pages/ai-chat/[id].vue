@@ -3,6 +3,9 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { Message, Chat } from "~/types/chat";
 import { useChats } from "~/composables/useChats";
+import MarkdownIt from "markdown-it";
+
+const md = new MarkdownIt();
 
 const route = useRoute();
 const router = useRouter();
@@ -144,7 +147,7 @@ function saveEditedTitle(chatId: number) {
   <div class="flex h-full flex-col items-center justify-center">
     <!-- Outer container -->
     <UCard
-      class="p-1 h-full min-h-[40rem] w-full max-w-7xl"
+      class="p-1 h-[85dvh] w-full max-w-7xl"
       :ui="{
         body: { padding: 'p-0 sm:p-0' },
         divide: 'divide-y-0',
@@ -270,14 +273,13 @@ function saveEditedTitle(chatId: number) {
               :class="message.isUser ? 'justify-end' : 'justify-start'"
             >
               <div
-                class="max-w-xs break-words rounded-lg p-3"
+                class="prose max-w-xs break-words rounded-lg p-3"
                 :class="{
-                  'bg-primary-500 text-white': message.isUser,
+                  'bg-primary-500 text-white prose-invert': message.isUser,
                   'bg-gray-200 text-gray-900': !message.isUser,
                 }"
-              >
-                {{ message.text }}
-              </div>
+                v-html="md.render(message.text)"
+              />
             </div>
 
             <!-- Loading indicator -->

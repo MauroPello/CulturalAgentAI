@@ -74,7 +74,7 @@ CulturalAgentAI/
    ```bash
    cp example.env .env
    ```
-   
+
    Edit `.env` and add your API keys:
    ```env
    PUBLIC_AI_KEY=your_public_ai_key_here
@@ -253,6 +253,39 @@ npm run lint:fix
 1. Build the application: `npm run build`
 2. Deploy the `.output` folder to your hosting provider
 3. Configure environment variables for production API endpoints
+
+## 🐳 Docker Setup
+
+This project is fully containerized. You can run the entire application stack using Docker Compose.
+
+### Prerequisites
+- Docker
+- Docker Compose
+
+### Running the Application
+
+1. **Environment Configuration**:
+   The backend service requires API keys to function correctly. Copy the example environment file and fill in your credentials:
+   ```bash
+   cp backend/example.env backend/.env
+   ```
+   Edit `backend/.env` with your actual API keys.
+
+2. **Build and Run with Docker Compose**:
+   From the root directory of the project, run:
+   ```bash
+   docker-compose up --build
+   ```
+   This command will build the Docker images for both the frontend and backend services and start the containers.
+
+   - The frontend will be accessible at [http://localhost:3000](http://localhost:3000).
+   - The backend API will be available at [http://localhost:8000](http://localhost:8000).
+
+3. **Stopping the Application**:
+   To stop the containers, press `Ctrl+C` in the terminal where `docker-compose` is running, or run the following command from the project root in another terminal:
+   ```bash
+   docker-compose down
+   ```
 
 ## 🤝 Contributing
 

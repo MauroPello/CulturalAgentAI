@@ -47,6 +47,8 @@
             </ul>
             <UButton
               class="mt-2"
+              icon="i-heroicons-arrow-up-tray"
+              size="lg"
               :loading="isUploading"
               :disabled="isUploading"
               @click="uploadFile"
@@ -162,7 +164,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
+import { useDocuments } from '~/composables/useDocuments';
+
+const { documents, isLoadingDocuments, fetchDocuments } = useDocuments();
 
 // Enhanced Document interface to match backend response
 interface Document {
@@ -182,55 +187,6 @@ const columns = [
   { key: "status", label: "Status" },
   { key: "actions", label: "Actions", class: "text-right" },
 ];
-const documents = ref<Document[]>([]);
-const isLoadingDocuments = ref(false);
-
-// Format file size for display
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-// Format upload date for display
-const formatDate = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleDateString();
-};
-
-// Fetch documents from the API
-const fetchDocuments = async () => {
-  isLoadingDocuments.value = true;
-  try {
-    const response = await fetch("http://localhost:8000/uploaded-files");
-    if (response.ok) {
-      const data = await response.json();
-      // Transform the API response to match our Document interface
-      documents.value = data.files.map((file: any, index: number) => ({
-        id: index + 1,
-        name: file.filename,
-        size: formatFileSize(file.file_size),
-        upload_date: formatDate(file.upload_time),
-        status: "completed" as const, // All files from this endpoint are processed
-        file_id: file.file_id // Include file_id for delete functionality
-      }));
-    } else {
-      console.error("Failed to fetch documents:", response.statusText);
-      documents.value = [];
-    }
-  } catch (error) {
-    console.error("Error fetching documents:", error);
-    documents.value = [];
-  } finally {
-    isLoadingDocuments.value = false;
-  }
-};
-
-// Fetch documents on component mount
-onMounted(() => {
-  fetchDocuments();
-});
 
 // --- Upload ---
 const selectedFiles = ref<File[]>([]);
@@ -315,7 +271,7 @@ const uploadFile = async () => {
     "dropzone-file"
   ) as HTMLInputElement;
   if (fileInput) fileInput.value = "";
-  
+
   // Always refresh the document list after upload attempts (whether successful or not)
   await fetchDocuments();
 };

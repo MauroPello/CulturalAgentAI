@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { Message } from "~/types/chat";
+import MarkdownIt from "markdown-it";
+
+const md = new MarkdownIt();
 
 const messages = ref<Message[]>([
   {
@@ -84,14 +87,13 @@ function confirmBuildPlan() {
               :class="message.isUser ? 'justify-end' : 'justify-start'"
             >
               <div
-                class="max-w-xs break-words rounded-lg p-3"
+                class="prose max-w-xs break-words rounded-lg p-3"
                 :class="{
-                  'bg-primary-500 text-white': message.isUser,
+                  'bg-primary-500 text-white prose-invert': message.isUser,
                   'bg-gray-200 text-gray-900': !message.isUser,
                 }"
-              >
-                {{ message.text }}
-              </div>
+                v-html="md.render(message.text)"
+              />
             </div>
           </div>
           <div class="flex w-full flex-col gap-3 justify-center items-center border-t p-4">

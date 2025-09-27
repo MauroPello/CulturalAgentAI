@@ -23,6 +23,7 @@
     "axios": "^1.8.4",
     "eslint": "^9.23.0",
     "gantt-schedule-timeline-calendar": "^3.41.2",
+    "markdown-it": "^14.1.0",
     "node-fetch": "^2.7.0",
     "nuxt": "^3.16.2",
     "nuxt-viewport": "^2.2.0",
@@ -35,7 +36,9 @@
     "@cloudflare/kv-asset-handler": "^0.4.0",
     "@cloudflare/workers-types": "^4.20250416.0",
     "@tailwindcss/postcss": "^4.1.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.14.1",
     "nitro-cloudflare-dev": "^0.2.2",
     "sass-embedded": "^1.86.3"
