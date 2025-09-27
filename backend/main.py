@@ -100,12 +100,6 @@ def add_processed_file(filename: str, file_id: str, file_size: int, chunks_added
     """Add a processed file to the tracking database."""
     db = load_processed_files()
 
-    # Check if file already exists by filename (avoid duplicates)
-    existing_file = next((f for f in db["files"] if f["filename"] == filename), None)
-    if existing_file:
-        print(f"File already exists in tracking database: {filename}")
-        return False  # File already tracked
-
     new_file = {
         "file_id": file_id,
         "filename": filename,
@@ -118,7 +112,6 @@ def add_processed_file(filename: str, file_id: str, file_size: int, chunks_added
     db["files"].append(new_file)
     save_processed_files(db)
     print(f"Added file to tracking database: {filename}")
-    return True  # Successfully added
 
 def remove_processed_file(file_id: str) -> bool:
     """Remove a processed file from the tracking database."""
@@ -154,6 +147,15 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
         try:
             logger.info(f"Starting document processing for file: {file.filename}")
             logger.info(f"File content type: {file.content_type}")
+
+            # Check for duplicates first
+            db = load_processed_files()
+            existing_file = next((f for f in db["files"] if f["filename"] == file.filename), None)
+            if existing_file:
+                duplicate_message = f"File '{file.filename}' already exists in the system."
+                logger.warning(duplicate_message)
+                duplicates.append({"filename": file.filename, "error": duplicate_message})
+                continue
 
             # Validate file type
             if file.content_type not in SUPPORTED_FILE_TYPES:
@@ -221,15 +223,7 @@ async def process_documents_endpoint(files: List[UploadFile] = File(...)):
             logger.info(f"Document processing for {file.filename} completed successfully!")
 
             # Add to processed files tracking database
-            file_added = add_processed_file(file.filename, file_id, len(contents), len(chunks))
-            if not file_added:
-                # File was a duplicate, add to duplicates list
-                error_message = f"File '{file.filename}' already exists in the system."
-                logger.warning(error_message)
-                duplicates.append({"filename": file.filename, "error": error_message})
-                # We don't need to remove the vector entries since they were never added for duplicates
-                continue
-
+            add_processed_file(file.filename, file_id, len(contents), len(chunks))
             print(f"Document processing for {file.filename} completed successfully!")
 
         except Exception as e:
@@ -375,14 +369,20 @@ async def list_uploaded_files():
 @app.delete("/uploaded-files/{file_id}")
 async def delete_processed_file(file_id: str):
     try:
+        # First, remove documents from vector database
+        deleted_chunks = vector_store_instance.delete_documents_by_file_id(file_id)
+        logger.info(f"Deleted {deleted_chunks} chunks from vector database for file_id: {file_id}")
+        
+        # Then remove from tracking database
         success = remove_processed_file(file_id)
 
         if success:
             return JSONResponse(
                 status_code=200,
                 content={
-                    "message": f"File {file_id} removed successfully",
-                    "file_id": file_id
+                    "message": f"File {file_id} and {deleted_chunks} associated chunks removed successfully",
+                    "file_id": file_id,
+                    "chunks_deleted": deleted_chunks
                 }
             )
         else:

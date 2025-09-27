@@ -242,12 +242,30 @@ const uploadFile = async () => {
     });
 
     const result = await response.json();
+    
+    // Debug logging to help troubleshoot
+    console.log('Upload response:', { status: response.status, result });
 
     const statusMessages: string[] = [];
-    const hasSuccess = result.processed_files && result.processed_files.length > 0;
-    const hasDuplicates = result.duplicates && result.duplicates.length > 0;
-    const hasErrors = result.errors && result.errors.length > 0;
-
+    
+    // Handle different response formats from backend
+    let hasSuccess = false;
+    let hasDuplicates = false;
+    let hasErrors = false;
+    
+    if (response.ok) {
+      // Standard success response format
+      hasSuccess = result.processed_files && result.processed_files.length > 0;
+      hasDuplicates = result.duplicates && result.duplicates.length > 0;
+      hasErrors = result.errors && result.errors.length > 0;
+    } else if (response.status === 409 && result.detail) {
+      // Duplicate files response format
+      hasDuplicates = result.detail.duplicates && result.detail.duplicates.length > 0;
+      hasErrors = result.detail.errors && result.detail.errors.length > 0;
+    }
+    
+    // Debug logging
+    console.log('Detection results:', { hasSuccess, hasDuplicates, hasErrors });
 
     if (response.ok || response.status === 409) { // Handle success and partial success
       if (hasSuccess) {
@@ -257,37 +275,56 @@ const uploadFile = async () => {
       }
 
       if (hasDuplicates) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const duplicateNames = result.duplicates.map((d: any) => `'${d.filename}'`).join(', ');
+        // Handle different duplicate response formats
+        let duplicateNames = '';
+        if (response.status === 409 && result.detail && result.detail.duplicates) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          duplicateNames = result.detail.duplicates.map((d: any) => `'${d.filename}'`).join(', ');
+        } else if (result.duplicates) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          duplicateNames = result.duplicates.map((d: any) => `'${d.filename || d.name}'`).join(', ');
+        }
         statusMessages.push(`These files already exist and were not re-uploaded: ${duplicateNames}.`);
       }
 
       if (hasErrors) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const errorDetails = result.errors.map((e: any) => `'${e.filename}': ${e.error}`).join('; ');
+        // Handle different error response formats
+        let errorDetails = '';
+        if (response.status === 409 && result.detail && result.detail.errors) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          errorDetails = result.detail.errors.map((e: any) => `'${e.filename}': ${e.error}`).join('; ');
+        } else if (result.errors) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          errorDetails = result.errors.map((e: any) => `'${e.filename}': ${e.error}`).join('; ');
+        }
         statusMessages.push(`Errors occurred with some files: ${errorDetails}.`);
       }
 
+      // Set status type based on what happened
       if (hasSuccess && !hasDuplicates && !hasErrors) {
         uploadStatusType.value = "success";
-      } else if (hasSuccess && (hasDuplicates || hasErrors)) {
-        uploadStatusType.value = "warning";
+      } else if (hasDuplicates && !hasErrors) {
+        uploadStatusType.value = "warning";  // Pure duplicates should show warning
+      } else if (hasSuccess && hasDuplicates) {
+        uploadStatusType.value = "warning";  // Mixed success and duplicates should show warning
+      } else if (hasSuccess && hasErrors) {
+        uploadStatusType.value = "warning";  // Mixed success and errors should show warning
       } else {
-        uploadStatusType.value = "error";
+        uploadStatusType.value = "error";    // Pure errors should show error
       }
 
       uploadStatus.value = statusMessages.join('\n');
+      
+      // Debug logging for final result
+      console.log('Final upload result:', { 
+        statusType: uploadStatusType.value, 
+        message: uploadStatus.value 
+      });
 
     } else { // Handle other errors (400, 500, etc.)
       uploadStatusType.value = "error";
       if (result.detail) {
-        if (result.duplicates) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const duplicateNames = result.duplicates.map((d: any) => `'${d.filename}'`).join(', ');
-            uploadStatus.value = `Upload failed. All files are duplicates: ${duplicateNames}`;
-        } else {
-            uploadStatus.value = `Upload failed: ${result.detail.message || result.detail}`;
-        }
+        uploadStatus.value = `Upload failed: ${result.detail.message || result.detail}`;
       } else {
         uploadStatus.value = "An unknown error occurred during upload.";
       }

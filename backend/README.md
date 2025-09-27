@@ -1,4 +1,4 @@
-# # CulturalAgentAI Backend
+# # CULTURA Backend
 
 FastAPI-based backend service providing intelligent document processing, cultural text alignment, and project planning capabilities.
 
