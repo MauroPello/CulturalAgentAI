@@ -150,7 +150,7 @@ onMounted(() => {
             data: (row: any) => {
               const assignee = findTaskByName(props.plan, row?.row?.label)?.assignee || 'Unassigned';
               const iconSrc = getAssigneeIcon(assignee);
-              return `<img src="${iconSrc}" alt="${assignee}" title="${assignee}" style="width: 24px; height: 24px; border-radius: 50%;" />`;
+              return `<img src="${iconSrc}" alt="${assignee}" title="${assignee}" style="width: 30px; height: 30px; border-radius: 50%;" />`;
             },
             isHTML: true,
             header: {
